@@ -1,25 +1,22 @@
-from typing import AsyncGenerator, Optional, List
+from typing import AsyncGenerator, Optional, List, Type
 import logging
 from datetime import datetime
 from app.domain.models.session import Session, SessionSummary
 from app.domain.repositories.session_repository import SessionRepository
-
 from app.interfaces.schemas.session import ShellViewResponse
 from app.interfaces.schemas.file import FileViewResponse
 from app.domain.models.agent import Agent
 from app.domain.services.agent_domain_service import AgentDomainService
 from app.domain.models.event import AgentEvent
-from typing import Type
-from app.domain.models.agent import Agent
 from app.domain.external.sandbox import Sandbox
 from app.domain.external.search import SearchEngine
 from app.domain.external.file import FileStorage
 from app.domain.repositories.agent_repository import AgentRepository
+from app.domain.repositories.user_repository import UserRepository
 from app.domain.external.task import Task
 from app.domain.models.file import FileInfo
 from app.core.config import get_settings
 from app.domain.repositories.mcp_repository import MCPRepository
-from app.domain.models.session import SessionStatus
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -33,11 +30,13 @@ class AgentService:
         task_cls: Type[Task],
         file_storage: FileStorage,
         mcp_repository: MCPRepository,
+        user_repository: UserRepository,
         search_engine: Optional[SearchEngine] = None,
     ):
         logger.info("Initializing AgentService")
         self._agent_repository = agent_repository
         self._session_repository = session_repository
+        self._user_repository = user_repository
         self._file_storage = file_storage
         self._agent_domain_service = AgentDomainService(
             self._agent_repository,
@@ -50,22 +49,63 @@ class AgentService:
         )
         self._search_engine = search_engine
         self._sandbox_cls = sandbox_cls
-    
-    async def create_session(self, user_id: str) -> Session:
+
+    async def create_session(
+        self,
+        user_id: str,
+        workspace_id: Optional[str] = None,
+        preset_id: Optional[str] = None,
+        model_provider: Optional[str] = None,
+        model_name: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        instructions: Optional[str] = None,
+    ) -> Session:
         logger.info(f"Creating new session for user: {user_id}")
-        agent = await self._create_agent()
-        session = Session(agent_id=agent.id, user_id=user_id)
+        settings = get_settings()
+        user = await self._user_repository.get_user_by_id(user_id)
+        forge_profile = user.forge_profile if user else None
+
+        preferences = forge_profile.model_preferences if forge_profile else None
+        preset = None
+        if forge_profile and preset_id:
+            preset = next(
+                (item for item in forge_profile.agent_presets if item.id == preset_id),
+                None,
+            )
+
+        valid_workspace_ids = {item.id for item in forge_profile.workspaces} if forge_profile else set()
+        selected_workspace_id = workspace_id if workspace_id in valid_workspace_ids else None
+        if preset and not selected_workspace_id and preset.workspace_id in valid_workspace_ids:
+            selected_workspace_id = preset.workspace_id
+
+        agent = await self._create_agent(
+            model_provider=model_provider or (preset.model_provider if preset else None) or (preferences.model_provider if preferences else None) or settings.model_provider,
+            model_name=model_name or (preset.model_name if preset else None) or (preferences.model_name if preferences else None) or settings.model_name,
+            temperature=temperature if temperature is not None else (preset.temperature if preset and preset.temperature is not None else (preferences.temperature if preferences else settings.temperature)),
+            max_tokens=max_tokens if max_tokens is not None else (preset.max_tokens if preset and preset.max_tokens is not None else (preferences.max_tokens if preferences else settings.max_tokens)),
+            instructions=instructions if instructions is not None else (preset.instructions if preset else ""),
+        )
+        session = Session(agent_id=agent.id, user_id=user_id, workspace_id=selected_workspace_id)
         logger.info(f"Created new Session with ID: {session.id} for user: {user_id}")
         await self._session_repository.save(session)
         return session
 
-    async def _create_agent(self) -> Agent:
+    async def _create_agent(
+        self,
+        model_provider: str,
+        model_name: str,
+        temperature: float,
+        max_tokens: int,
+        instructions: str = "",
+    ) -> Agent:
         logger.info("Creating new agent")
-        settings = get_settings()
         agent = Agent(
-            model_name=settings.model_name,
-            temperature=settings.temperature,
-            max_tokens=settings.max_tokens,
+            model_provider=model_provider,
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            system_prompt_suffix=(instructions or "").strip(),
         )
         logger.info(f"Created new Agent with ID: {agent.id}")
         
@@ -85,7 +125,8 @@ class AgentService:
         event_id: Optional[str] = None,
         attachments: Optional[List[dict]] = None
     ) -> AsyncGenerator[AgentEvent, None]:
-        logger.info(f"Starting chat with session {session_id}: {message[:50]}...")
+        preview = (message or "")[:50]
+        logger.info(f"Starting chat with session {session_id}: {preview}...")
         # Directly use the domain service's chat method, which will check if the session exists
         async for event in self._agent_domain_service.chat(session_id, user_id, message, timestamp, event_id, attachments):
             logger.debug(f"Received event: {event}")

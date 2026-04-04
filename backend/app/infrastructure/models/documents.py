@@ -7,7 +7,7 @@ from app.domain.models.memory import Memory
 from app.domain.models.event import AgentEvent
 from app.domain.models.session import Session, SessionStatus
 from app.domain.models.file import FileInfo
-from app.domain.models.user import User, UserRole
+from app.domain.models.user import User, UserRole, ForgeProfile
 from app.domain.models.claw import Claw, ClawStatus, ClawMessage
 from pymongo import IndexModel, ASCENDING, DESCENDING
 
@@ -52,6 +52,7 @@ class UserDocument(BaseDocument[User], id_field="user_id", domain_model_class=Us
     password_hash: Optional[str] = None
     role: UserRole = UserRole.USER
     is_active: bool = True
+    forge_profile: ForgeProfile = Field(default_factory=ForgeProfile)
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
     last_login_at: Optional[datetime] = None
@@ -67,9 +68,11 @@ class UserDocument(BaseDocument[User], id_field="user_id", domain_model_class=Us
 class AgentDocument(BaseDocument[Agent], id_field="agent_id", domain_model_class=Agent):
     """MongoDB document for Agent"""
     agent_id: str
+    model_provider: str
     model_name: str
     temperature: float
     max_tokens: int
+    system_prompt_suffix: str = ""
     memories: Dict[str, Memory] = {}
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
@@ -85,6 +88,7 @@ class SessionDocument(BaseDocument[Session], id_field="session_id", domain_model
     """MongoDB model for Session"""
     session_id: str
     user_id: str  # User ID that owns this session
+    workspace_id: Optional[str] = None
     sandbox_id: Optional[str] = None
     agent_id: str
     task_id: Optional[str] = None

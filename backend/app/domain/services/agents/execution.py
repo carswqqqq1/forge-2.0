@@ -43,9 +43,12 @@ class ExecutionAgent(BaseAgent):
             agent_repository=agent_repository,
             tools=tools
         )
+
+    def _runtime_prompt(self, prompt: str) -> str:
+        return self._settings.normalize_sandbox_text(prompt) or prompt
     
     async def execute_step(self, plan: Plan, step: Step, message: Message) -> AsyncGenerator[BaseEvent, None]:
-        message = EXECUTION_PROMPT.format(
+        message = self._runtime_prompt(EXECUTION_PROMPT).format(
             step=step.description, 
             message=message.message,
             attachments="\n".join(message.attachments),
@@ -81,7 +84,7 @@ class ExecutionAgent(BaseAgent):
         step.status = ExecutionStatus.COMPLETED
 
     async def summarize(self) -> AsyncGenerator[BaseEvent, None]:
-        message = SUMMARIZE_PROMPT
+        message = self._runtime_prompt(SUMMARIZE_PROMPT)
         async for event in self.execute(message):
             if isinstance(event, MessageEvent):
                 logger.debug(f"Execution agent summary: {event.message}")

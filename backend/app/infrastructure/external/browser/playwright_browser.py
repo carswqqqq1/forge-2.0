@@ -30,7 +30,17 @@ class PlaywrightBrowser:
             kwargs["default_headers"] = self.settings.extra_headers
         self._model = init_chat_model(**kwargs)
         self.cdp_url = cdp_url
-        
+
+    async def _launch_local_browser(self) -> None:
+        launch_kwargs: Dict[str, Any] = {
+            "headless": True,
+        }
+        try:
+            self.browser = await self.playwright.chromium.launch(channel="chrome", **launch_kwargs)
+        except Exception:
+            logger.warning("Failed to launch Chrome channel, falling back to bundled Chromium")
+            self.browser = await self.playwright.chromium.launch(**launch_kwargs)
+    
     async def initialize(self):
         """Initialize and ensure resources are available"""
         # Add retry logic
@@ -39,8 +49,11 @@ class PlaywrightBrowser:
         for attempt in range(max_retries):
             try:
                 self.playwright = await async_playwright().start()
-                # Connect to existing Chrome instance
-                self.browser = await self.playwright.chromium.connect_over_cdp(self.cdp_url)
+                if self.cdp_url.startswith("launch://"):
+                    await self._launch_local_browser()
+                else:
+                    # Connect to existing Chrome instance
+                    self.browser = await self.playwright.chromium.connect_over_cdp(self.cdp_url)
                 # Get all contexts
                 contexts = self.browser.contexts
                 if contexts and len(contexts[0].pages) == 1:

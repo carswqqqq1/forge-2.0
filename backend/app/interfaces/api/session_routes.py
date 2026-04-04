@@ -14,7 +14,7 @@ from app.application.errors.exceptions import NotFoundError, UnauthorizedError
 from app.interfaces.dependencies import get_agent_service, get_current_user, get_optional_current_user, get_token_service, verify_signature_websocket
 from app.interfaces.schemas.base import APIResponse
 from app.interfaces.schemas.session import (
-    ChatRequest, ShellViewRequest, CreateSessionResponse, GetSessionResponse,
+    ChatRequest, ShellViewRequest, CreateSessionRequest, CreateSessionResponse, GetSessionResponse,
     ListSessionItem, ListSessionResponse, ShellViewResponse,
     ShareSessionResponse, SharedSessionResponse
 )
@@ -31,10 +31,20 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 @router.put("", response_model=APIResponse[CreateSessionResponse])
 async def create_session(
+    request: Optional[CreateSessionRequest] = None,
     current_user: User = Depends(get_current_user),
     agent_service: AgentService = Depends(get_agent_service)
 ) -> APIResponse[CreateSessionResponse]:
-    session = await agent_service.create_session(current_user.id)
+    session = await agent_service.create_session(
+        current_user.id,
+        workspace_id=request.workspace_id if request else None,
+        preset_id=request.preset_id if request else None,
+        model_provider=request.model_provider if request else None,
+        model_name=request.model_name if request else None,
+        temperature=request.temperature if request else None,
+        max_tokens=request.max_tokens if request else None,
+        instructions=request.instructions if request else None,
+    )
     return APIResponse.success(
         CreateSessionResponse(
             session_id=session.id,
@@ -53,6 +63,7 @@ async def get_session(
     return APIResponse.success(GetSessionResponse(
         session_id=session.id,
         title=session.title,
+        workspace_id=session.workspace_id,
         status=session.status,
         events=await EventMapper.events_to_sse_events(session.events),
         is_shared=session.is_shared
@@ -95,6 +106,7 @@ async def get_all_sessions(
         ListSessionItem(
             session_id=s.id,
             title=s.title,
+            workspace_id=s.workspace_id,
             status=s.status,
             unread_message_count=s.unread_message_count,
             latest_message=s.latest_message,
@@ -116,6 +128,7 @@ async def stream_sessions(
                 ListSessionItem(
                     session_id=s.id,
                     title=s.title,
+                    workspace_id=s.workspace_id,
                     status=s.status,
                     unread_message_count=s.unread_message_count,
                     latest_message=s.latest_message,

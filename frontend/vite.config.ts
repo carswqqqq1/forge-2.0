@@ -3,6 +3,8 @@ import vue from '@vitejs/plugin-vue';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import { resolve } from 'path';
 
+const frontendPort = Number(process.env.FRONTEND_PORT || process.env.PORT || 3000);
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -19,7 +21,7 @@ export default defineConfig({
   },
   server: {
     host: true,
-    port: 5173,
+    port: frontendPort,
     ...(process.env.BACKEND_URL && {
       proxy: {
         '/api': {
@@ -30,4 +32,8 @@ export default defineConfig({
       },
     }),
   },
-}); 
+  preview: {
+    host: true,
+    port: frontendPort,
+  },
+});

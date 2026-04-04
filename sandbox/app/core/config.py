@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     ORIGINS: List[str] = ["*"]
+    STANDALONE_DEV_MODE: bool = False
     
     # Service timeout settings (minutes)
     SERVICE_TIMEOUT_MINUTES: Optional[int] = None

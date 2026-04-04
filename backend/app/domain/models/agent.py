@@ -11,9 +11,11 @@ class Agent(BaseModel):
     """
     id: str = Field(default_factory=lambda: uuid.uuid4().hex[:16])
     memories: Dict[str, Memory] = Field(default_factory=dict)
+    model_provider: str = Field(default="openai")
     model_name: str = Field(default="")
     temperature: float = Field(default=0.7)
     max_tokens: int = Field(default=2000)
+    system_prompt_suffix: str = Field(default="")
     
     # Context related fields
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))  # Creation timestamp
@@ -32,6 +34,10 @@ class Agent(BaseModel):
         if v is not None and v <= 0:
             raise ValueError("Max tokens must be positive")
         return v
+
+    @field_validator("model_provider", "model_name", "system_prompt_suffix")
+    def validate_text_fields(cls, v: str) -> str:
+        return (v or "").strip()
 
     class Config:
         arbitrary_types_allowed = True

@@ -208,5 +208,9 @@ class GridFSFileStorage(FileStorage):
 @lru_cache()
 def get_file_storage() -> FileStorage:
     """Get file storage instance"""
+    settings = get_settings()
+    if settings.standalone_dev_mode:
+        from app.infrastructure.external.file.in_memory_file_storage import InMemoryFileStorage
+        return InMemoryFileStorage()
     from app.infrastructure.storage.mongodb import get_mongodb
     return GridFSFileStorage(mongodb=get_mongodb())

@@ -36,7 +36,7 @@ services:
   frontend:
     image: simpleyyt/manus-frontend
     ports:
-      - "5173:80"
+      - "3000:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -263,4 +263,4 @@ docker compose up -d
 
 > 注意：如果提示 `sandbox-1 exited with code 0`，这是正常的，这是为了让 sandbox 镜像成功拉取到本地。
 
-打开浏览器访问 <http://localhost:5173> 即可访问 Manus。
+打开浏览器访问 <http://localhost:3000> 即可访问 Forge。

@@ -16,8 +16,9 @@ from app.interfaces.schemas.auth import (
     LoginRequest, RegisterRequest, ChangePasswordRequest, ChangeFullnameRequest, RefreshTokenRequest,
     SendVerificationCodeRequest, ResetPasswordRequest,
     LoginResponse, RegisterResponse, AuthStatusResponse, RefreshTokenResponse,
-    UserResponse
+    UserResponse, UpdateForgeProfileRequest
 )
+from app.domain.models.user import ForgeProfile
 from app.core.config import get_settings
 from app.domain.models.user import User
 
@@ -115,6 +116,27 @@ async def get_current_user_info(
 ) -> APIResponse[UserResponse]:
     """Get current user information"""
     return APIResponse.success(UserResponse.from_user(current_user))
+
+
+@router.get("/forge-profile", response_model=APIResponse[ForgeProfile])
+async def get_forge_profile(
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
+) -> APIResponse[ForgeProfile]:
+    """Get the current user's Forge profile settings."""
+    forge_profile = await auth_service.get_forge_profile(current_user.id)
+    return APIResponse.success(forge_profile)
+
+
+@router.put("/forge-profile", response_model=APIResponse[ForgeProfile])
+async def update_forge_profile(
+    request: UpdateForgeProfileRequest,
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
+) -> APIResponse[ForgeProfile]:
+    """Replace the current user's Forge profile settings."""
+    forge_profile = await auth_service.update_forge_profile(current_user.id, request.forge_profile)
+    return APIResponse.success(forge_profile)
 
 
 @router.get("/user/{user_id}", response_model=APIResponse[UserResponse])

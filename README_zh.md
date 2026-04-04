@@ -78,7 +78,7 @@ services:
   frontend:
     image: simpleyyt/manus-frontend
     ports:
-      - "5173:80"
+      - "3000:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -160,7 +160,7 @@ docker compose up -d
 
 > 注意：如果提示`sandbox-1 exited with code 0`，这是正常的，这是为了让 sandbox 镜像成功拉取到本地。
 
-打开浏览器访问<http://localhost:5173>即可访问 Manus。更多配置见：https://docs.ai-manus.com/#/configuration
+打开浏览器访问<http://localhost:3000>即可访问 Forge。更多配置见：https://docs.ai-manus.com/#/configuration
 
 ## 开发指南
 
@@ -223,7 +223,7 @@ MODEL_NAME=gpt-4o
 ```
 
 各服务会以 reload 模式运行，代码改动会自动重新加载。暴露的端口如下：
-- 5173: Web前端端口
+- 3000: Web前端端口
 - 8000: Server API服务端口
 - 8080: Sandbox API服务端口
 - 5900: Sandbox VNC端口

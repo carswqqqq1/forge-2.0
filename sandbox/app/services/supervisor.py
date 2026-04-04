@@ -41,7 +41,14 @@ class SupervisorService:
     """
     def __init__(self):
         self.rpc_url = "/tmp/supervisor.sock"
-        self._connect_rpc()
+        self.server = None
+        self._rpc_available = False
+        try:
+            self._connect_rpc()
+            self._rpc_available = True
+        except ResourceNotFoundException:
+            if not settings.STANDALONE_DEV_MODE:
+                raise
         
         # Timeout management - enabled based on configuration
         self.timeout_active = settings.SERVICE_TIMEOUT_MINUTES is not None
@@ -119,6 +126,8 @@ class SupervisorService:
     
     async def get_all_processes(self) -> List[ProcessInfo]:
         """Asynchronously get all process statuses"""
+        if not self._rpc_available:
+            return []
         try:
             processes = await self._call_rpc(self.server.supervisor.getAllProcessInfo)
             return [ProcessInfo(**process) for process in processes]
@@ -127,6 +136,8 @@ class SupervisorService:
     
     async def stop_all_services(self) -> SupervisorActionResult:
         """Asynchronously stop all services"""
+        if not self._rpc_available:
+            return SupervisorActionResult(status="standalone_unavailable", result=[])
         try:
             result = await self._call_rpc(self.server.supervisor.stopAllProcesses)
             return SupervisorActionResult(status="stopped", result=result)
@@ -135,6 +146,8 @@ class SupervisorService:
     
     async def shutdown(self) -> SupervisorActionResult:
         """Asynchronously shut down the supervisord service itself, without stopping processes"""
+        if not self._rpc_available:
+            return SupervisorActionResult(status="standalone_noop", shutdown_result=[])
         try:
             shutdown_result = await self._call_rpc(self.server.supervisor.shutdown)
             return SupervisorActionResult(status="shutdown", shutdown_result=shutdown_result)
@@ -143,6 +156,12 @@ class SupervisorService:
     
     async def restart_all_services(self) -> SupervisorActionResult:
         """Asynchronously restart all services"""
+        if not self._rpc_available:
+            return SupervisorActionResult(
+                status="standalone_unavailable",
+                stop_result=[],
+                start_result=[],
+            )
         try:
             stop_result = await self._call_rpc(self.server.supervisor.stopAllProcesses)
             start_result = await self._call_rpc(self.server.supervisor.startAllProcesses)

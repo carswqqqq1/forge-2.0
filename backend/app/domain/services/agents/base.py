@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import uuid
+import getpass
 from abc import ABC
 from typing import List, Dict, Any, Optional, AsyncGenerator
 from app.domain.models.message import Message
@@ -47,26 +48,86 @@ class BaseAgent(ABC):
         agent_repository: AgentRepository,
         tools: List[BaseToolkit] = []
     ):
-        settings = get_settings()
         self._agent_id = agent_id
         self._repository = agent_repository
-        kwargs = dict(
-            model=settings.model_name,
-            model_provider=settings.model_provider,
-            temperature=settings.temperature,
-            max_tokens=settings.max_tokens,
-            base_url=settings.api_base,
+        self._settings = get_settings()
+        self._base_system_prompt = self._normalize_prompt_for_runtime(self.system_prompt)
+        self.system_prompt = self._base_system_prompt
+        self._agent_config_loaded = False
+        self._configure_model(
+            model=self._settings.model_name,
+            model_provider=self._settings.model_provider,
+            temperature=self._settings.temperature,
+            max_tokens=self._settings.max_tokens,
         )
-        if settings.extra_headers:
-            kwargs["default_headers"] = settings.extra_headers
+        self.toolkits = tools
+        self.memory = None
+
+    def _normalize_prompt_for_runtime(self, prompt: str) -> str:
+        """Keep prompt-level filesystem guidance aligned with the active sandbox mode."""
+        prompt = self._settings.normalize_sandbox_text(prompt) or prompt
+        if not self._settings.standalone_dev_mode:
+            return prompt
+        prompt = prompt.replace(
+            "- Access a Linux sandbox environment with internet connection",
+            "- Access a standalone development sandbox environment with internet connection",
+        )
+        prompt = prompt.replace(
+            "- User: `ubuntu`, with sudo privileges",
+            f"- User: `{getpass.getuser()}` on the local machine; avoid sudo unless it is clearly necessary",
+        )
+        prompt = prompt.replace(
+            "- Ubuntu 22.04 (linux/amd64), with internet access",
+            "- Local host-backed development environment with internet access",
+        )
+        return prompt
+
+    def _configure_model(
+        self,
+        model: str,
+        model_provider: str,
+        temperature: float,
+        max_tokens: int,
+    ) -> None:
+        kwargs = dict(
+            model=model,
+            model_provider=model_provider,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            base_url=self._settings.api_base,
+        )
+        if self._settings.extra_headers:
+            kwargs["default_headers"] = self._settings.extra_headers
         self._model = init_chat_model(**kwargs)
         self._json_output_parser = RetryWithErrorOutputParser.from_llm(
             parser=JsonOutputParser(),
             llm=self._model,
             max_retries=self.max_retries,
         )
-        self.toolkits = tools
-        self.memory = None
+
+    async def _ensure_agent_config(self) -> None:
+        if self._agent_config_loaded:
+            return
+
+        agent = await self._repository.find_by_id(self._agent_id)
+        if agent:
+            self._configure_model(
+                model=agent.model_name or self._settings.model_name,
+                model_provider=agent.model_provider or self._settings.model_provider,
+                temperature=agent.temperature,
+                max_tokens=agent.max_tokens,
+            )
+            if agent.system_prompt_suffix:
+                self.system_prompt = (
+                    f"{self._base_system_prompt}\n\n"
+                    "<forge_session_instructions>\n"
+                    f"{agent.system_prompt_suffix}\n"
+                    "</forge_session_instructions>"
+                )
+            else:
+                self.system_prompt = self._base_system_prompt
+
+        self._agent_config_loaded = True
 
     async def _parse_json(self, text: str) -> dict:
         """Parse JSON from LLM output using RetryWithErrorOutputParser."""
@@ -149,6 +210,7 @@ class BaseAgent(ABC):
         yield MessageEvent(message=message.content)
     
     async def _ensure_memory(self):
+        await self._ensure_agent_config()
         if not self.memory:
             self.memory = await self._repository.get_memory(self._agent_id, self.name)
     

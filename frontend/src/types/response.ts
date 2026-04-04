@@ -14,6 +14,7 @@ export interface CreateSessionResponse {
 export interface GetSessionResponse {
     session_id: string;
     title: string | null;
+    workspace_id: string | null;
     status: SessionStatus;
     events: AgentSSEEvent[];
     is_shared: boolean;
@@ -22,6 +23,7 @@ export interface GetSessionResponse {
 export interface ListSessionItem {
     session_id: string;
     title: string | null;
+    workspace_id: string | null;
     latest_message: string | null;
     latest_message_at: number | null;
     status: SessionStatus;

@@ -21,8 +21,12 @@ from app.infrastructure.external.cache import get_cache
 # Import all required dependencies for agent service
 from app.infrastructure.external.sandbox.docker_sandbox import DockerSandbox
 from app.infrastructure.external.task.redis_task import RedisStreamTask
+from app.infrastructure.external.task.in_memory_task import InMemoryTask
 from app.infrastructure.repositories.mongo_agent_repository import MongoAgentRepository
 from app.infrastructure.repositories.mongo_session_repository import MongoSessionRepository
+from app.infrastructure.repositories.in_memory_agent_repository import InMemoryAgentRepository
+from app.infrastructure.repositories.in_memory_session_repository import InMemorySessionRepository
+from app.infrastructure.repositories.in_memory_user_repository import InMemoryUserRepository
 from app.infrastructure.repositories.file_mcp_repository import FileMCPRepository
 from app.infrastructure.repositories.user_repository import MongoUserRepository
 from app.infrastructure.repositories.claw_repository import ClawRepository as MongoClawRepository
@@ -36,6 +40,37 @@ logger = logging.getLogger(__name__)
 # Security scheme - Bearer Token only
 security_bearer = HTTPBearer(auto_error=False)
 
+
+@lru_cache()
+def get_agent_repository():
+    settings = get_settings()
+    if settings.standalone_dev_mode:
+        return InMemoryAgentRepository()
+    return MongoAgentRepository()
+
+
+@lru_cache()
+def get_session_repository():
+    settings = get_settings()
+    if settings.standalone_dev_mode:
+        return InMemorySessionRepository()
+    return MongoSessionRepository()
+
+
+@lru_cache()
+def get_user_repository():
+    settings = get_settings()
+    if settings.standalone_dev_mode:
+        return InMemoryUserRepository()
+    return MongoUserRepository()
+
+
+def get_task_class():
+    settings = get_settings()
+    if settings.standalone_dev_mode:
+        return InMemoryTask
+    return RedisStreamTask
+
 @lru_cache()
 def get_agent_service() -> AgentService:
     """
@@ -47,13 +82,14 @@ def get_agent_service() -> AgentService:
     logger.info("Creating AgentService instance")
     
     # Create all dependencies
-    agent_repository = MongoAgentRepository()
-    session_repository = MongoSessionRepository()
+    agent_repository = get_agent_repository()
+    session_repository = get_session_repository()
     sandbox_cls = DockerSandbox
-    task_cls = RedisStreamTask
+    task_cls = get_task_class()
     file_storage = get_file_storage()
     search_engine = get_search_engine()
     mcp_repository = FileMCPRepository()
+    user_repository = get_user_repository()
     
     # Create AgentService instance
     return AgentService(
@@ -64,6 +100,7 @@ def get_agent_service() -> AgentService:
         file_storage=file_storage,
         search_engine=search_engine,
         mcp_repository=mcp_repository,
+        user_repository=user_repository,
     )
 
 
@@ -98,7 +135,7 @@ def get_auth_service() -> AuthService:
     logger.info("Creating AuthService instance")
     
     # Get user repository dependency
-    user_repository = MongoUserRepository()
+    user_repository = get_user_repository()
     
     return AuthService(
         user_repository=user_repository,
@@ -161,6 +198,9 @@ async def get_current_user(
     
     # If auth_provider is 'none', return anonymous user
     if settings.auth_provider == "none":
+        user = await auth_service.get_user_by_id("anonymous")
+        if user:
+            return user
         return User(
             id="anonymous",
             fullname="anonymous",
@@ -206,6 +246,9 @@ async def get_optional_current_user(
     
     # If auth_provider is 'none', return anonymous user
     if settings.auth_provider == "none":
+        user = await auth_service.get_user_by_id("anonymous")
+        if user:
+            return user
         return User(
             id="anonymous",
             fullname="anonymous",
