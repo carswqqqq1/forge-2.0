@@ -408,21 +408,31 @@ class PlaywrightBrowser:
         
         return formatted_elements
     
-    async def navigate(self, url: str, timeout: Optional[int] = 15000) -> ToolResult:
+    async def navigate(self, url: str, timeout: Optional[int] = None) -> ToolResult:
         """Navigate to the specified URL
-        
+
         Args:
             url: URL to navigate to
-            timeout: Navigation timeout (milliseconds), default is 60 seconds
+            timeout: Navigation timeout (milliseconds), default is 20000 (20 seconds)
         """
         await self._ensure_page()
+
+        # Set default timeout to 20 seconds if not provided
+        if timeout is None:
+            timeout = 20000
+
         try:
             # Clear cache as the page is about to change
             self.page.interactive_elements_cache = []
             try:
                 await self.page.goto(url, timeout=timeout)
+            except asyncio.TimeoutError:
+                logger.warning(f"Navigation timeout for {url}: page took longer than {timeout}ms to load")
+                # Don't fail the operation, just log and continue
+                # This allows the agent to move on rather than hanging indefinitely
             except Exception as e:
                 logger.warning(f"Failed to navigate to {url}: {str(e)}")
+
             return ToolResult(
                 success=True,
                 data={

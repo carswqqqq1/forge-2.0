@@ -18,12 +18,28 @@
         </svg>
       </template>
       <template v-else>
-        <img
-          class="size-[18px] object-cover [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(7%)_saturate(141%)_hue-rotate(349deg)_brightness(95%)_contrast(86%)]"
-          :alt="session.title || ''"
-          src="https://files.manuscdn.com/assets/icon/session/chatting.svg" />
+        <!-- Use dynamic icon based on task content -->
+        <template v-if="getTaskIcon === Code2">
+          <Code2 :size="18" class="text-[var(--icon-primary)]" />
+        </template>
+        <template v-else-if="getTaskIcon === Search">
+          <Search :size="18" class="text-[var(--icon-primary)]" />
+        </template>
+        <template v-else-if="getTaskIcon === FileText">
+          <FileText :size="18" class="text-[var(--icon-primary)]" />
+        </template>
+        <template v-else-if="getTaskIcon === Globe">
+          <Globe :size="18" class="text-[var(--icon-primary)]" />
+        </template>
+        <!-- Default icon -->
+        <template v-else>
+          <img
+            class="size-[18px] object-cover [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(7%)_saturate(141%)_hue-rotate(349deg)_brightness(95%)_contrast(86%)]"
+            :alt="session.title || ''"
+            src="https://files.manuscdn.com/assets/icon/session/chatting.svg" />
+        </template>
       </template>
-    
+
     </div>
 
     <!-- 标题 -->
@@ -47,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { Ellipsis } from 'lucide-vue-next';
+import { Ellipsis, Code2, Search, FileText, Globe } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -81,6 +97,24 @@ const currentSessionId = computed(() => {
 
 const isCurrentSession = computed(() => {
   return currentSessionId.value === props.session.session_id;
+});
+
+// Determine icon based on task title content
+const getTaskIcon = computed(() => {
+  const title = (props.session.title || '').toLowerCase();
+
+  if (title.includes('code') || title.includes('script') || title.includes('python') || title.includes('javascript') || title.includes('programming') || title.includes('debug')) {
+    return Code2;
+  } else if (title.includes('search') || title.includes('find') || title.includes('research') || title.includes('lookup')) {
+    return Search;
+  } else if (title.includes('write') || title.includes('create') || title.includes('draft') || title.includes('document') || title.includes('compose') || title.includes('article')) {
+    return FileText;
+  } else if (title.includes('web') || title.includes('website') || title.includes('page') || title.includes('visit') || title.includes('browse')) {
+    return Globe;
+  }
+
+  // Default: return null (will use the existing icon logic)
+  return null;
 });
 
 const handleSessionClick = () => {

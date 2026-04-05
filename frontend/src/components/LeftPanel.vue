@@ -47,20 +47,6 @@
           </div>
         </div>
 
-        <!-- Claw 入口 -->
-        <div
-          v-if="clawEnabled"
-          @click="handleClawClick"
-          class="flex items-center rounded-[10px] cursor-pointer transition-colors w-full gap-[12px] h-[36px] ps-[9px] pe-[2px]"
-          :class="route.path === '/chat/claw' ? 'bg-[var(--fill-tsp-white-main)]' : 'hover:bg-[var(--fill-tsp-white-light)]'">
-          <div class="shrink-0 size-[18px] flex items-center justify-center">
-            <div class="claw-nav-icon w-[18px] h-[18px]" />
-          </div>
-          <div class="flex-1 min-w-0 flex gap-[4px] items-center text-[14px] text-[var(--text-primary)]">
-            <span class="truncate">Manus Claw</span>
-          </div>
-        </div>
-
         <!-- 所有任务分组标题 + 会话列表 -->
         <div class="flex flex-col flex-1 min-h-0 -mx-[8px] mt-[4px] overflow-hidden">
           <div class="w-full border-t border-[var(--border-main)] transition-opacity duration-200" :class="isListScrolled ? 'opacity-100' : 'opacity-0'"></div>
@@ -68,13 +54,16 @@
           <!-- 滚动容器：标题 + 列表一起滚动 -->
           <div ref="scrollContainerRef" class="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-5 px-[8px]" @scroll="handleListScroll">
 
-            <!-- 分组标题 -->
+            <!-- 分组标题 with "Recent Tasks" label -->
+            <div class="text-[13px] leading-[18px] text-[var(--text-tertiary)] font-medium min-w-0 truncate tracking-[-0.091px] ps-[10px] py-[8px] pt-[12px]">
+              {{ t('Recent Tasks') }}
+            </div>
             <div
               class="group flex items-center justify-between ps-[10px] pe-[2px] py-[2px] h-[36px] gap-[12px] flex-shrink-0 cursor-pointer hover:bg-[var(--fill-tsp-white-light)] transition-colors rounded-[10px]"
               @click="isAllTasksCollapsed = !isAllTasksCollapsed">
               <div class="flex items-center flex-1 min-w-0 gap-0.5">
                 <span class="text-[13px] leading-[18px] text-[var(--text-tertiary)] font-medium min-w-0 truncate tracking-[-0.091px]">
-                  {{ t('All Tasks') }}
+                  {{ isAllTasksCollapsed ? t('Show All') : t('All Tasks') }}
                 </span>
                 <ChevronUp
                   :size="14"
@@ -129,7 +118,6 @@ const sessions = ref<ListSessionItem[]>([])
 const cancelGetSessionsSSE = ref<(() => void) | null>(null)
 const isAllTasksCollapsed = ref(false)
 const isListScrolled = ref(false)
-const clawEnabled = ref(false)
 const scrollContainerRef = ref<HTMLElement | null>(null)
 
 const handleListScroll = () => {
@@ -178,10 +166,6 @@ const handleNewTaskClick = () => {
   router.push('/')
 }
 
-const handleClawClick = () => {
-  router.push('/chat/claw')
-}
-
 const handleSessionDeleted = (sessionId: string) => {
   console.log('handleSessionDeleted', sessionId)
   sessions.value = sessions.value.filter(session => session.session_id !== sessionId);
@@ -197,10 +181,6 @@ const handleKeydown = (event: KeyboardEvent) => {
 }
 
 onMounted(async () => {
-  getCachedClientConfig().then(cfg => {
-    clawEnabled.value = cfg?.claw_enabled ?? false
-  })
-
   // Initial fetch of sessions
   fetchSessions()
 

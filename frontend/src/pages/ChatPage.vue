@@ -117,6 +117,7 @@
           </button>
           <PlanPanel v-if="plan && plan.steps.length > 0" :plan="plan" />
           <ChatBox v-model="inputMessage" :rows="1" @submit="handleSubmit" :isRunning="isLoading" @stop="handleStop"
+            :disabled="(currentUser?.credits ?? 0) <= 0"
             :attachments="attachments" />
         </div>
       </div>
@@ -154,6 +155,7 @@ import type { FileInfo } from '../api/file';
 import { useLeftPanel } from '../composables/useLeftPanel'
 import { useSessionFileList } from '../composables/useSessionFileList'
 import { useFilePanel } from '../composables/useFilePanel'
+import { useAuth } from '../composables/useAuth'
 import { copyToClipboard } from '../utils/dom'
 import { SessionStatus } from '../types/response';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -164,6 +166,7 @@ const { t } = useI18n()
 const { toggleLeftPanel, isLeftPanelShow } = useLeftPanel()
 const { showSessionFileList } = useSessionFileList()
 const { hideFilePanel } = useFilePanel()
+const { currentUser } = useAuth()
 
 // Create initial state factory
 const createInitialState = () => ({
@@ -311,10 +314,26 @@ const handleStepEvent = (stepData: StepEventData) => {
 // Handle error event
 const handleErrorEvent = (errorData: ErrorEventData) => {
   isLoading.value = false;
+  let errorMessage = 'Something went wrong while processing this task. Please try again.';
+
+  // Show more informative error messages if available
+  if (errorData.message) {
+    const msg = errorData.message.toLowerCase();
+
+    // Check for specific error types
+    if (msg.includes('timeout') || msg.includes('timed out')) {
+      errorMessage = 'Browser navigation timed out. The page took too long to load. Moving to next step...';
+    } else if (msg.includes('navigation')) {
+      errorMessage = `Browser navigation error: ${errorData.message}. You can retry or start a new task.`;
+    } else {
+      errorMessage = `Task encountered an error: ${errorData.message}. You can retry or start a new task.`;
+    }
+  }
+
   messages.value.push({
     type: 'assistant',
     content: {
-      content: errorData.error,
+      content: errorMessage,
       timestamp: errorData.timestamp
     } as MessageContent,
   });
