@@ -107,6 +107,8 @@ class SessionDocument(BaseDocument[Session], id_field="session_id", domain_model
     mode: str = "auto"
     permissions: str = "standard"
     risk_level: str = "low"
+    model_tier: str = "lite"
+    wide_research: bool = False
     class Settings:
         name = "sessions"
         indexes = [

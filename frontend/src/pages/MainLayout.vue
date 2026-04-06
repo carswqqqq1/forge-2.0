@@ -15,6 +15,8 @@
   <SessionFileList />
   <SettingsDialog />
   <ContextMenu />
+  <SearchModal />
+  <ConnectIntegrationModal />
 </template>
 
 <script setup lang="ts">
@@ -25,4 +27,6 @@ import TakeOverView from '@/components/TakeOverView.vue';
 import SessionFileList from '@/components/SessionFileList.vue';
 import FilePanel from '@/components/FilePanel.vue';
 import SettingsDialog from '@/components/settings/SettingsDialog.vue';
+import SearchModal from '@/components/SearchModal.vue';
+import ConnectIntegrationModal from '@/components/ConnectIntegrationModal.vue';
 </script>

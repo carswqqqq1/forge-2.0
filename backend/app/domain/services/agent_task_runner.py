@@ -166,14 +166,16 @@ class AgentTaskRunner(TaskRunner):
                 elif event.tool_name == "shell":
                     if "id" in event.function_args:
                         shell_result = await self._sandbox.view_shell(event.function_args["id"], console=True)
-                        event.tool_content = ShellToolContent(console=shell_result.data.get("console", []))
+                        shell_data = shell_result.data or {}
+                        event.tool_content = ShellToolContent(console=shell_data.get("console", []))
                     else:
                         event.tool_content = ShellToolContent(console="(No Console)")
                 elif event.tool_name == "file":
                     if "file" in event.function_args:
                         file_path = event.function_args["file"]
                         file_read_result = await self._sandbox.file_read(file_path)
-                        file_content: str = file_read_result.data.get("content", "")
+                        file_data = file_read_result.data or {}
+                        file_content: str = file_data.get("content", "")
                         event.tool_content = FileToolContent(content=file_content)
                         await self._sync_file_to_storage(file_path)
                     else:

@@ -31,6 +31,8 @@ class CreateSessionResponse(BaseModel):
     mode: str = "auto"
     permissions: str = "standard"
     risk_level: str = "low"
+    model_tier: str = "lite"
+    wide_research: bool = False
 
 
 class GetSessionResponse(BaseModel):
@@ -47,6 +49,8 @@ class GetSessionResponse(BaseModel):
     mode: str = "auto"
     permissions: str = "standard"
     risk_level: str = "low"
+    model_tier: str = "lite"
+    wide_research: bool = False
 
 
 class ListSessionItem(BaseModel):
@@ -64,6 +68,8 @@ class ListSessionItem(BaseModel):
     mode: str = "auto"
     permissions: str = "standard"
     risk_level: str = "low"
+    model_tier: str = "lite"
+    wide_research: bool = False
 
 
 class ListSessionResponse(BaseModel):
@@ -98,3 +104,7 @@ class SharedSessionResponse(BaseModel):
     status: SessionStatus
     events: List[AgentSSEEvent] = []
     is_shared: bool
+
+
+class SessionFollowupsResponse(BaseModel):
+    suggestions: List[str]

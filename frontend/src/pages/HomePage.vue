@@ -1,113 +1,92 @@
 <template>
   <SimpleBar>
-    <div
-      class="flex flex-col h-full flex-1 min-w-0 mx-auto w-full sm:min-w-[390px] px-5 justify-center items-start gap-2 relative max-w-full sm:max-w-full">
-      <div class="w-full pt-4 pb-4 px-5 bg-[var(--background-gray-main)] sticky top-0 z-10 mx-[-1.25]">
-        <div class="flex justify-between items-center w-full absolute left-0 right-0">
-          <div class="h-8 relative z-20 overflow-hidden flex gap-2 items-center flex-shrink-0">
-            <div class="relative flex items-center">
-              <div @click="toggleLeftPanel" v-if="!isLeftPanelShow"
-                class="flex h-7 w-7 items-center justify-center cursor-pointer rounded-md hover:bg-[var(--fill-tsp-gray-main)]">
-                <PanelLeft class="size-5 text-[var(--icon-secondary)]" />
-              </div>
-            </div>
-            <button class="flex items-center gap-2 h-9 px-3 rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)]" @click="showVersionToast">
-              <Bot :size="18" />
-              <span class="text-sm font-medium text-[var(--text-primary)]">Forge</span>
-              <ChevronDown :size="14" class="text-[var(--icon-secondary)]" />
-            </button>
-            <div class="hidden sm:flex items-center gap-2 ml-4">
-              <button
-                @click="selectedModelTier = 'regular'"
-                class="h-8 px-3 rounded-full border text-sm"
-                :class="selectedModelTier === 'regular' ? 'bg-black text-white border-black' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-btn-main)]'">
-                Regular
-              </button>
-              <button
-                @click="selectedModelTier = 'max'"
-                class="h-8 px-3 rounded-full border text-sm"
-                :class="selectedModelTier === 'max' ? 'bg-black text-white border-black' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-btn-main)]'">
-                Max
-              </button>
-            </div>
-          </div>
+    <div class="flex flex-col h-full flex-1 min-w-0 mx-auto w-full px-5 relative max-w-full bg-[var(--background-gray-main)]">
+      <div class="w-full pt-4 pb-4 px-5 sticky top-0 z-10 mx-[-1.25rem] bg-[var(--background-gray-main)]">
+        <div class="flex justify-between items-center w-full">
           <div class="flex items-center gap-2">
-            <button
-              class="hidden sm:flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]"
-              @click="showInfoToast('No notifications yet')">
+            <div @click="toggleLeftPanel" v-if="!isLeftPanelShow" class="flex h-7 w-7 items-center justify-center cursor-pointer rounded-md hover:bg-[var(--fill-tsp-gray-main)]">
+              <PanelLeft class="size-5 text-[var(--icon-secondary)]" />
+            </div>
+            <ForgeModelDropdown />
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="hidden sm:flex h-8 px-3 rounded-full border text-sm items-center gap-2 border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
+              <Sparkles :size="14" />
+              {{ currentUser?.credits ?? '...' }}
+            </span>
+            <button class="hidden sm:flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]" @click="showInfoToast('No notifications yet')">
               <Bell :size="16" />
             </button>
-            <span
-              class="hidden sm:flex h-8 px-3 rounded-full border text-sm items-center gap-2 border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
-              <span class="inline-flex h-2 w-2 rounded-full bg-black"></span>
-              {{ currentUser?.credits ?? '...' }} credits
-            </span>
-            <button
-              class="hidden sm:flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]"
-              @click="showInfoToast('Multi-account support coming soon')">
+            <button class="hidden sm:flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]" @click="showInfoToast('Multi-account support coming soon')">
               <Plus :size="16" />
             </button>
-            <div class="relative flex items-center" aria-expanded="false" aria-haspopup="dialog"
-              @mouseenter="handleUserMenuEnter" @mouseleave="handleUserMenuLeave">
-              <div class="relative flex items-center justify-center font-bold cursor-pointer flex-shrink-0">
-                <div
-                  class="relative flex items-center justify-center font-bold flex-shrink-0 rounded-full overflow-hidden"
-                  style="width: 32px; height: 32px; font-size: 16px; color: rgba(255, 255, 255, 0.9); background-color: rgb(59, 130, 246);">
-                  {{ avatarLetter }}</div>
+            <div class="relative flex items-center gap-2" aria-expanded="false" aria-haspopup="dialog" @mouseenter="handleUserMenuEnter" @mouseleave="handleUserMenuLeave">
+              <div class="relative flex items-center justify-center font-bold flex-shrink-0 rounded-full overflow-hidden" style="width: 32px; height: 32px; font-size: 16px; color: rgba(255, 255, 255, 0.9); background-color: rgb(59, 130, 246);">
+                {{ avatarLetter }}
               </div>
-              <!-- User Menu -->
-              <div v-if="showUserMenu" @mouseenter="handleUserMenuEnter" @mouseleave="handleUserMenuLeave"
-                class="absolute top-full right-0 mt-1 mr-[-15px] z-50">
+              <div v-if="showUserMenu" @mouseenter="handleUserMenuEnter" @mouseleave="handleUserMenuLeave" class="absolute top-full right-0 mt-1 mr-[-15px] z-50">
                 <UserMenu />
               </div>
             </div>
           </div>
         </div>
-        <div class="h-8"></div>
       </div>
-      <div class="w-full max-w-full sm:max-w-[768px] sm:min-w-[390px] mx-auto mt-[180px] mb-auto">
-        <div class="w-full flex pl-4 items-center justify-start pb-4">
-          <span class="text-[var(--text-primary)] text-start font-serif text-[32px] leading-[40px]" :style="{
-            fontFamily:
-              'ui-serif, Georgia, Cambria, &quot;Times New Roman&quot;, Times, serif',
-          }">
-            {{ $t('Hello') }}, <span v-text="currentUser?.fullname || 'User'"></span>
-            <br />
-            <span class="text-[var(--text-tertiary)]">
-              {{ $t('What can I do for you?') }}
-            </span>
-          </span>
+
+      <div class="w-full max-w-[820px] mx-auto pt-14 pb-10">
+        <div class="text-center mb-10">
+          <h1 class="forge-home-heading">What can I do for you?</h1>
         </div>
-        <div class="flex flex-col gap-1 w-full">
-          <div class="flex flex-wrap items-center gap-2 pl-1 pb-3">
-            <button
-              @click="selectedMode = 'auto'"
-              class="h-8 px-3 rounded-full border text-sm"
-              :class="selectedMode === 'auto' ? 'bg-black text-white border-black' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-btn-main)]'">
-              Auto
+
+        <ChatBox
+          :rows="2"
+          v-model="message"
+          @submit="handleSubmit"
+          :isRunning="false"
+          :attachments="attachments"
+          :disabled="(currentUser?.credits ?? 0) <= 0"
+          :placeholder="wideResearch ? 'What topic do you want to research deeply?' : 'Assign a task to Forge...'" />
+
+        <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <button v-for="action in primaryActions" :key="action.label" class="quick-pill" @click="applyQuickAction(action)">
+            <component :is="action.icon" :size="14" />
+            <span>{{ action.label }}</span>
+          </button>
+          <div class="relative">
+            <button class="quick-pill" @click="showMore = !showMore">
+              <span>More</span>
             </button>
-            <button
-              @click="selectedMode = 'checkpoint'"
-              class="h-8 px-3 rounded-full border text-sm"
-              :class="selectedMode === 'checkpoint' ? 'bg-black text-white border-black' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-btn-main)]'">
-              Checkpoint
-            </button>
-            <select v-model="selectedBudget"
-              class="h-8 px-3 rounded-full border text-sm bg-[var(--background-white-main)] border-[var(--border-btn-main)] text-[var(--text-secondary)]">
-              <option :value="8">Budget 8</option>
-              <option :value="16">Budget 16</option>
-              <option :value="32">Budget 32</option>
-            </select>
-            <select v-model="selectedPermissions"
-              class="h-8 px-3 rounded-full border text-sm bg-[var(--background-white-main)] border-[var(--border-btn-main)] text-[var(--text-secondary)]">
-              <option value="standard">Standard Access</option>
-              <option value="guarded">Guarded Access</option>
-            </select>
-          </div>
-          <div class="flex flex-col bg-[var(--background-gray-main)] w-full">
-            <div class="[&amp;:not(:empty)]:pb-2 bg-[var(--background-gray-main)] rounded-[22px_22px_0px_0px]">
+            <div v-if="showMore" class="absolute top-full right-0 mt-2 w-[220px] rounded-[18px] border border-[var(--border-main)] bg-white shadow-[0px_18px_48px_0px_rgba(0,0,0,0.12)] p-2 z-50">
+              <button v-for="action in moreActions" :key="action.label" class="more-action" @click="applyQuickAction(action)">
+                <div class="flex items-center gap-2 min-w-0">
+                  <component :is="action.icon" :size="14" />
+                  <span class="truncate">{{ action.label }}</span>
+                </div>
+                <ExternalLink v-if="action.external" :size="14" />
+              </button>
             </div>
-            <ChatBox :rows="2" v-model="message" @submit="handleSubmit" :isRunning="false" :attachments="attachments" :disabled="(currentUser?.credits ?? 0) <= 0" />
+          </div>
+        </div>
+
+        <div v-if="!onboardingDismissed" class="mt-12">
+          <div class="rounded-[26px] border border-[var(--border-main)] bg-white p-5 shadow-[0px_14px_40px_0px_rgba(0,0,0,0.05)]">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <div class="text-[18px] font-semibold text-[var(--text-primary)]">{{ onboardingCards[onboardingIndex].title }}</div>
+                <div class="mt-2 text-[14px] leading-7 text-[var(--text-secondary)]">{{ onboardingCards[onboardingIndex].description }}</div>
+              </div>
+              <button class="h-8 w-8 rounded-full hover:bg-[var(--fill-tsp-white-light)] flex items-center justify-center" @click="dismissOnboarding">
+                <X :size="16" class="text-[var(--icon-secondary)]" />
+              </button>
+            </div>
+            <div class="mt-6 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <button v-for="(_, idx) in onboardingCards" :key="idx" class="h-2.5 rounded-full transition-all" :class="idx === onboardingIndex ? 'w-6 bg-[var(--text-primary)]' : 'w-2.5 bg-black/15'" @click="onboardingIndex = idx"></button>
+              </div>
+              <button class="rounded-full border border-[var(--border-main)] px-4 py-2 text-sm font-medium" @click="nextOnboardingCard">
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -117,21 +96,28 @@
 
 <script setup lang="ts">
 import SimpleBar from '../components/SimpleBar.vue';
-import { ref, onMounted, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
 import ChatBox from '../components/ChatBox.vue';
 import { createSession } from '../api/agent';
 import { showErrorToast, showInfoToast } from '../utils/toast';
-import { Bot, PanelLeft, ChevronDown, Bell, Plus } from 'lucide-vue-next';
+import { PanelLeft, Sparkles, Plus, Bell, BriefcaseBusiness, Monitor, Laptop, PenTool, AppWindow, CalendarClock, SearchCheck, Sheet, ChartColumn, Clapperboard, AudioWaveform, MessageCircle, ExternalLink, X } from 'lucide-vue-next';
 import type { FileInfo } from '../api/file';
 import { useLeftPanel } from '../composables/useLeftPanel';
 import { useFilePanel } from '../composables/useFilePanel';
 import { useAuth } from '../composables/useAuth';
-import { getCachedClientConfig } from '../api/config';
 import UserMenu from '../components/UserMenu.vue';
+import ForgeModelDropdown from '../components/ForgeModelDropdown.vue';
+import { useModelTier } from '../composables/useModelTier';
 
-const { t } = useI18n();
+type QuickAction = {
+  label: string;
+  icon: any;
+  prompt: string;
+  wideResearch?: boolean;
+  external?: boolean;
+};
+
 const router = useRouter();
 const message = ref('');
 const isSubmitting = ref(false);
@@ -139,22 +125,50 @@ const attachments = ref<FileInfo[]>([]);
 const { toggleLeftPanel, isLeftPanelShow } = useLeftPanel();
 const { hideFilePanel } = useFilePanel();
 const { currentUser } = useAuth();
-const selectedModelTier = ref<'regular' | 'max'>((localStorage.getItem('forge-model-tier') as 'regular' | 'max') || 'regular');
-const selectedMode = ref<'auto' | 'checkpoint'>((localStorage.getItem('forge-run-mode') as 'auto' | 'checkpoint') || 'auto');
-const selectedBudget = ref(Number(localStorage.getItem('forge-run-budget') || '16'));
-const selectedPermissions = ref<'standard' | 'guarded'>((localStorage.getItem('forge-run-permissions') as 'standard' | 'guarded') || 'standard');
-const showVersionToast = () => showInfoToast('Forge version picker coming soon');
+const { currentTier } = useModelTier();
+const showMore = ref(false);
+const wideResearch = ref(false);
 
-// Get first letter of user's fullname for avatar display
-const avatarLetter = computed(() => {
-  return currentUser.value?.fullname?.charAt(0)?.toUpperCase() || 'F';
-});
-
-// User menu state
+const avatarLetter = computed(() => currentUser.value?.fullname?.charAt(0)?.toUpperCase() || 'F');
 const showUserMenu = ref(false);
 const userMenuTimeout = ref<number | null>(null);
+const onboardingDismissed = ref(localStorage.getItem('forge-onboarding-dismissed') === 'true');
+const onboardingIndex = ref(0);
 
-// Show user menu on hover
+const primaryActions: QuickAction[] = [
+  { label: 'Create slides', icon: BriefcaseBusiness, prompt: 'Create a presentation about ' },
+  { label: 'Build website', icon: Monitor, prompt: 'Build a website for ' },
+  { label: 'Develop desktop apps', icon: Laptop, prompt: 'Develop a desktop app that ' },
+  { label: 'Design', icon: PenTool, prompt: 'Design a concept for ' },
+];
+
+const moreActions: QuickAction[] = [
+  { label: 'Develop apps', icon: AppWindow, prompt: 'Develop an app that ' },
+  { label: 'Schedule task', icon: CalendarClock, prompt: 'Schedule a task that ' },
+  { label: 'Wide Research', icon: SearchCheck, prompt: 'Conduct deep research on ', wideResearch: true },
+  { label: 'Spreadsheet', icon: Sheet, prompt: 'Create a spreadsheet for ' },
+  { label: 'Visualization', icon: ChartColumn, prompt: 'Create a visualization for ' },
+  { label: 'Video', icon: Clapperboard, prompt: 'Create a video plan for ' },
+  { label: 'Audio', icon: AudioWaveform, prompt: 'Create an audio brief for ' },
+  { label: 'Chat mode', icon: MessageCircle, prompt: 'Help me think through ' },
+  { label: 'Playbook', icon: ExternalLink, prompt: 'Create a playbook for ', external: true },
+];
+
+const onboardingCards = [
+  {
+    title: 'Get the most out of Forge',
+    description: 'Tell Forge about your preferences, workflows, and how you like tasks to be handled so it can stay aligned across runs.',
+  },
+  {
+    title: 'Connect your tools',
+    description: 'Link GitHub, Gmail, Calendar, and more so Forge can do deeper work with your real systems and context.',
+  },
+  {
+    title: 'Wide research mode',
+    description: 'Use Wide Research when you want Forge to break a topic into subtopics, search broadly, and synthesize a full report.',
+  },
+];
+
 const handleUserMenuEnter = () => {
   if (userMenuTimeout.value) {
     clearTimeout(userMenuTimeout.value);
@@ -163,56 +177,101 @@ const handleUserMenuEnter = () => {
   showUserMenu.value = true;
 };
 
-// Hide user menu with delay
 const handleUserMenuLeave = () => {
   userMenuTimeout.value = setTimeout(() => {
     showUserMenu.value = false;
-  }, 200); // 200ms delay to allow moving to menu
+  }, 200);
+};
+
+const applyQuickAction = (action: QuickAction) => {
+  message.value = action.prompt;
+  wideResearch.value = !!action.wideResearch;
+  showMore.value = false;
+};
+
+const dismissOnboarding = () => {
+  onboardingDismissed.value = true;
+  localStorage.setItem('forge-onboarding-dismissed', 'true');
+};
+
+const nextOnboardingCard = () => {
+  onboardingIndex.value = (onboardingIndex.value + 1) % onboardingCards.length;
 };
 
 onMounted(() => {
   hideFilePanel();
-})
+});
 
 const handleSubmit = async () => {
   if (message.value.trim() && !isSubmitting.value) {
     isSubmitting.value = true;
-
     try {
-      // Create new Agent
-      localStorage.setItem('forge-model-tier', selectedModelTier.value);
-      localStorage.setItem('forge-run-mode', selectedMode.value);
-      localStorage.setItem('forge-run-budget', String(selectedBudget.value));
-      localStorage.setItem('forge-run-permissions', selectedPermissions.value);
-      const session = await createSession(selectedModelTier.value, message.value, {
-        maxBudget: selectedBudget.value,
-        mode: selectedMode.value,
-        permissions: selectedPermissions.value,
+      const session = await createSession(currentTier.value, message.value, {
+        maxBudget: currentTier.value === 'max' ? 32 : currentTier.value === 'regular' ? 20 : 12,
+        mode: 'auto',
+        permissions: 'standard',
+        wideResearch: wideResearch.value,
       });
       if (currentUser.value) {
         currentUser.value.credits = Math.max(0, (currentUser.value.credits ?? 0) - (session.spent_credits ?? session.estimated_cost ?? 0));
       }
-      const sessionId = session.session_id;
-
-      // Navigate to new route with session_id, passing initial message via state
       router.push({
-        path: `/chat/${sessionId}`,
+        path: `/chat/${session.session_id}`,
         state: {
-          message: message.value, files: attachments.value.map((file: FileInfo) => ({
+          message: message.value,
+          files: attachments.value.map((file: FileInfo) => ({
             file_id: file.file_id,
             filename: file.filename,
             content_type: file.content_type,
             size: file.size,
-            upload_date: file.upload_date
-          }))
-        }
+            upload_date: file.upload_date,
+          })),
+        },
       });
     } catch (error) {
-      console.error('Failed to create session:', error);
-      showErrorToast((error as any)?.response?.data?.msg || t('Failed to create session, please try again later'));
+      showErrorToast((error as any)?.response?.data?.msg || 'Failed to create session, please try again later');
       isSubmitting.value = false;
-      // Note: Don't clear message/attachments to allow user to retry
+      return;
     }
   }
 };
 </script>
+
+<style scoped>
+.forge-home-heading {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 40px;
+  font-weight: 400;
+  color: #1a1a1a;
+  line-height: 1.15;
+}
+
+.quick-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9999px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.quick-pill:hover,
+.more-action:hover {
+  background: var(--background-gray-main);
+}
+
+.more-action {
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+</style>

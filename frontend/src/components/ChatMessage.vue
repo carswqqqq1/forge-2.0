@@ -16,11 +16,11 @@
   </div>
   <div v-else-if="message.type === 'assistant'" class="flex flex-col gap-2 w-full group" :class="hideAssistantHeader ? 'mt-0' : 'mt-3'">
     <div v-if="!hideAssistantHeader" class="flex items-center justify-between h-7 group">
-      <div class="flex items-center gap-[3px]">
-        <component v-if="assistantIcon" :is="assistantIcon" :size="24" class="w-6 h-6" />
-        <Bot v-else :size="24" class="w-6 h-6" />
-        <span v-if="assistantName" class="text-base text-[var(--text-primary)] tracking-tight leading-none ml-0.5">{{ assistantName }}</span>
-        <ManusTextIcon v-else-if="!assistantIcon" />
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1 rounded-full border border-[var(--border-main)] bg-[var(--background-white-main)] px-2.5 py-1 text-[12px] text-[var(--text-secondary)]">
+          <Bot :size="13" />
+          <span>forge | 1 {{ modelLabel }}</span>
+        </span>
       </div>
       <div class="flex items-center gap-[2px] invisible group-hover:visible">
         <div class="float-right transition text-[12px] text-[var(--text-tertiary)] invisible group-hover:visible">
@@ -74,11 +74,11 @@
   </div>
   <div v-else-if="message.type === 'attachments' && attachmentsContent.role === 'assistant'" class="flex flex-col gap-2 w-full group" :class="hideAssistantHeader ? 'mt-0' : 'mt-3'">
     <div v-if="!hideAssistantHeader" class="flex items-center justify-between h-7 group">
-      <div class="flex items-center gap-[3px]">
-        <component v-if="assistantIcon" :is="assistantIcon" :size="24" class="w-6 h-6" />
-        <Bot v-else :size="24" class="w-6 h-6" />
-        <span v-if="assistantName" class="text-base text-[var(--text-primary)] tracking-tight leading-none ml-0.5">{{ assistantName }}</span>
-        <ManusTextIcon v-else-if="!assistantIcon" />
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1 rounded-full border border-[var(--border-main)] bg-[var(--background-white-main)] px-2.5 py-1 text-[12px] text-[var(--text-secondary)]">
+          <Bot :size="13" />
+          <span>forge | 1 {{ modelLabel }}</span>
+        </span>
       </div>
       <div class="flex items-center gap-[2px] invisible group-hover:visible">
         <div class="float-right transition text-[12px] text-[var(--text-tertiary)] invisible group-hover:visible">
@@ -92,7 +92,6 @@
 </template>
 
 <script setup lang="ts">
-import ManusTextIcon from './icons/ManusTextIcon.vue';
 import { Message, MessageContent, AttachmentsContent } from '../types/message';
 import ToolUse from './ToolUse.vue';
 import { marked } from 'marked';
@@ -112,9 +111,15 @@ const props = defineProps<{
   assistantName?: string;
   hideAllFilesButton?: boolean;
   hideHeader?: boolean;
+  modelTier?: string;
 }>();
 
 const hideAssistantHeader = computed(() => props.hideHeader ?? false);
+const modelLabel = computed(() => {
+  if (props.modelTier === 'max') return 'max';
+  if (props.modelTier === 'regular') return 'forge';
+  return 'lite';
+});
 
 const emit = defineEmits<{
   (e: 'toolClick', tool: ToolContent): void;

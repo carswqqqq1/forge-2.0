@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import uuid
+import re
 from abc import ABC
 from typing import List, Dict, Any, Optional, AsyncGenerator
 from app.domain.models.message import Message
@@ -87,6 +88,23 @@ class BaseAgent(ABC):
         """Get all available tools list"""
         return [tool for toolkit in self.toolkits for tool in toolkit.get_tools()]
 
+    def _normalize_function_name(self, name: str) -> str:
+        """Best-effort cleanup for malformed tool names returned by the model."""
+        if not name:
+            return name
+        available_names = [tool.name for tool in self.get_tools()]
+        if name in available_names:
+            return name
+        trimmed = re.split(r"<\||\s|\(", name, maxsplit=1)[0].strip()
+        if trimmed in available_names:
+            logger.info("Normalized malformed tool name '%s' -> '%s'", name, trimmed)
+            return trimmed
+        for tool_name in available_names:
+            if name.startswith(tool_name):
+                logger.info("Normalized malformed tool name '%s' -> '%s'", name, tool_name)
+                return tool_name
+        return trimmed or name
+
     async def invoke_tool(self, tool: Tool, tool_call: ToolCall) -> ToolMessage:
         """Invoke specified tool, with retry mechanism."""
         retries = 0
@@ -112,7 +130,8 @@ class BaseAgent(ABC):
                 break
             tool_responses = []
             for tool_call in message.tool_calls:
-                function_name = tool_call["name"]
+                function_name = self._normalize_function_name(tool_call["name"])
+                tool_call["name"] = function_name
                 tool_call_id = tool_call["id"] = tool_call["id"] or str(uuid.uuid4())
                 function_args = tool_call["args"]
                 
@@ -255,7 +274,7 @@ class BaseAgent(ABC):
         if not last_message.tool_calls:
             return
         tool_call = last_message.tool_calls[0]
-        function_name = tool_call["name"]
+        function_name = self._normalize_function_name(tool_call["name"])
         tool_call_id = tool_call["id"]
         if function_name == "message_ask_user":
             self.memory.add_message(ToolMessage(tool_call_id=tool_call_id, name=function_name, content=message))

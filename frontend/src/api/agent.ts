@@ -11,9 +11,9 @@ import type { FileInfo } from './file';
  * @returns Session
  */
 export async function createSession(
-  modelTier: 'regular' | 'max' = 'regular',
+  modelTier: 'lite' | 'regular' | 'max' = 'lite',
   prompt: string = '',
-  options: { maxBudget?: number; mode?: 'auto' | 'checkpoint'; permissions?: 'standard' | 'guarded' } = {}
+  options: { maxBudget?: number; mode?: 'auto' | 'checkpoint'; permissions?: 'standard' | 'guarded'; wideResearch?: boolean } = {}
 ): Promise<CreateSessionResponse> {
   const params = new URLSearchParams({
     model_tier: modelTier,
@@ -21,6 +21,7 @@ export async function createSession(
     max_budget: String(options.maxBudget ?? 12),
     mode: options.mode ?? 'auto',
     permissions: options.permissions ?? 'standard',
+    wide_research: String(Boolean(options.wideResearch)),
   });
   const response = await apiClient.put<ApiResponse<CreateSessionResponse>>(`/sessions?${params.toString()}`);
   return response.data.data;
@@ -52,6 +53,11 @@ export async function deleteSession(sessionId: string): Promise<void> {
 
 export async function renameSession(sessionId: string, title: string): Promise<void> {
   await apiClient.patch<ApiResponse<void>>(`/sessions/${sessionId}`, { title });
+}
+
+export async function getSessionFollowups(sessionId: string): Promise<string[]> {
+  const response = await apiClient.get<ApiResponse<{ suggestions: string[] }>>(`/sessions/${sessionId}/followups`);
+  return response.data.data.suggestions;
 }
 
 export async function stopSession(sessionId: string): Promise<void> {

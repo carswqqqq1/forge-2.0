@@ -16,7 +16,7 @@ from app.interfaces.schemas.base import APIResponse
 from app.interfaces.schemas.session import (
     ChatRequest, ShellViewRequest, CreateSessionResponse, GetSessionResponse,
     ListSessionItem, ListSessionResponse, ShellViewResponse,
-    ShareSessionResponse, SharedSessionResponse, UpdateSessionRequest
+    ShareSessionResponse, SharedSessionResponse, UpdateSessionRequest, SessionFollowupsResponse
 )
 from app.interfaces.schemas.file import FileViewRequest, FileViewResponse
 from app.interfaces.schemas.resource import AccessTokenRequest, SignedUrlResponse
@@ -38,6 +38,7 @@ async def create_session(
     max_budget: int = Query(default=0),
     mode: str = Query(default="auto"),
     permissions: str = Query(default="standard"),
+    wide_research: bool = Query(default=False),
 ) -> APIResponse[CreateSessionResponse]:
     session = await agent_service.create_session(
         current_user.id,
@@ -46,6 +47,7 @@ async def create_session(
         max_budget=max_budget,
         mode=mode,
         permissions=permissions,
+        wide_research=wide_research,
     )
     return APIResponse.success(
         CreateSessionResponse(
@@ -56,6 +58,8 @@ async def create_session(
             mode=session.mode,
             permissions=session.permissions,
             risk_level=session.risk_level,
+            model_tier=session.model_tier,
+            wide_research=session.wide_research,
         )
     )
 
@@ -81,6 +85,8 @@ async def get_session(
         mode=session.mode,
         permissions=session.permissions,
         risk_level=session.risk_level,
+        model_tier=session.model_tier,
+        wide_research=session.wide_research,
     ))
 
 @router.delete("/{session_id}", response_model=APIResponse[None])
@@ -142,6 +148,8 @@ async def get_all_sessions(
                 mode=s.mode,
                 permissions=s.permissions,
                 risk_level=s.risk_level,
+                model_tier=s.model_tier,
+                wide_research=s.wide_research,
             ) for s in summaries
         ]
     return APIResponse.success(ListSessionResponse(sessions=session_items))
@@ -169,6 +177,8 @@ async def stream_sessions(
                 mode=s.mode,
                 permissions=s.permissions,
                 risk_level=s.risk_level,
+                model_tier=s.model_tier,
+                wide_research=s.wide_research,
             ) for s in summaries
         ]
             yield ServerSentEvent(
@@ -177,6 +187,15 @@ async def stream_sessions(
             )
             await asyncio.sleep(SESSION_POLL_INTERVAL)
     return EventSourceResponse(event_generator())
+
+@router.get("/{session_id}/followups", response_model=APIResponse[SessionFollowupsResponse])
+async def get_session_followups(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    agent_service: AgentService = Depends(get_agent_service)
+) -> APIResponse[SessionFollowupsResponse]:
+    suggestions = await agent_service.get_session_followups(session_id, current_user.id)
+    return APIResponse.success(SessionFollowupsResponse(suggestions=suggestions))
 
 @router.post("/{session_id}/chat")
 async def chat(

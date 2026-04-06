@@ -1,160 +1,127 @@
 <template>
   <SimpleBar ref="simpleBarRef" @scroll="handleScroll">
-    <div ref="chatContainerRef" class="relative flex flex-col h-full flex-1 min-w-0 px-5">
-      <div ref="observerRef"
-        class="sm:min-w-[390px] flex flex-row items-center justify-between pt-3 pb-1 gap-1 sticky top-0 z-10 bg-[var(--background-gray-main)] flex-shrink-0">
+    <div ref="chatContainerRef" class="relative flex flex-col h-full flex-1 min-w-0 px-5 bg-[var(--background-gray-main)]">
+      <div ref="observerRef" class="sm:min-w-[390px] flex flex-row items-center justify-between pt-3 pb-2 gap-3 sticky top-0 z-10 bg-[var(--background-gray-main)] flex-shrink-0">
         <div class="flex items-center flex-1">
           <div class="relative flex items-center">
-            <div @click="toggleLeftPanel" v-if="!isLeftPanelShow"
-              class="flex h-7 w-7 items-center justify-center cursor-pointer rounded-md hover:bg-[var(--fill-tsp-gray-main)]">
+            <div @click="toggleLeftPanel" v-if="!isLeftPanelShow" class="flex h-7 w-7 items-center justify-center cursor-pointer rounded-md hover:bg-[var(--fill-tsp-gray-main)]">
               <PanelLeft class="size-5 text-[var(--icon-secondary)]" />
             </div>
           </div>
-          <button class="hidden sm:inline-flex items-center gap-2 h-9 px-3 rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] ms-2" @click="showInfoToast('Forge version picker coming soon')">
-            <span class="text-sm font-medium text-[var(--text-primary)]">Forge</span>
-            <ChevronDown :size="14" class="text-[var(--icon-secondary)]" />
-          </button>
         </div>
-        <div class="max-w-full sm:max-w-[768px] sm:min-w-[390px] flex w-full flex-col gap-[4px] overflow-hidden">
-          <div
-            class="text-[var(--text-primary)] text-lg font-medium w-full flex flex-row items-center justify-between flex-1 min-w-0 gap-2">
-            <div class="flex flex-row items-center gap-[6px] flex-1 min-w-0">
-              <span class="whitespace-nowrap text-ellipsis overflow-hidden">
+
+        <div class="max-w-full sm:max-w-[820px] sm:min-w-[390px] flex w-full flex-col gap-[6px] overflow-hidden">
+          <div class="flex items-center justify-between gap-3 min-w-0">
+            <div class="flex items-center gap-3 min-w-0">
+              <ForgeModelDropdown />
+              <span class="whitespace-nowrap text-ellipsis overflow-hidden text-[22px] font-medium text-[var(--text-primary)]">
                 {{ title }}
               </span>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
-              <button class="hidden sm:flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]" @click="showInfoToast('No notifications yet')">
-                <Bell :size="16" />
+              <button class="header-action-btn hidden sm:inline-flex" @click="showInfoToast('Collaboration is coming soon')">
+                <UsersRound :size="15" />
+                <span>Collaborate</span>
               </button>
-              <span class="hidden sm:inline-flex h-8 px-3 rounded-full border text-xs items-center border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
-                {{ runModeLabel }}
-              </span>
-              <span class="hidden sm:inline-flex h-8 px-3 rounded-full border text-xs items-center border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
-                Budget {{ maxBudget }}/{{ spentCredits }}
-              </span>
-              <span class="hidden sm:inline-flex h-8 px-3 rounded-full border text-xs items-center border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
-                {{ permissionsLabel }}
-              </span>
-              <span class="hidden sm:inline-flex h-8 px-3 rounded-full border text-xs items-center border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
-                {{ riskLabel }}
-              </span>
-              <span class="relative flex-shrink-0" aria-expanded="false" aria-haspopup="dialog">
-                <Popover>
-                  <PopoverTrigger>
-                    <button
-                      class="h-8 px-3 rounded-[100px] inline-flex items-center gap-1 clickable outline outline-1 outline-offset-[-1px] outline-[var(--border-btn-main)] hover:bg-[var(--fill-tsp-white-light)] me-1.5">
-                      <ShareIcon color="var(--icon-secondary)" />
-                      <span class="text-[var(--text-secondary)] text-sm font-medium">{{ t('Share') }}</span>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent>
-                    <div
-                      class="w-[400px] flex flex-col rounded-2xl bg-[var(--background-menu-white)] shadow-[0px_8px_32px_0px_var(--shadow-S),0px_0px_0px_1px_var(--border-light)]"
-                      style="max-width: calc(-16px + 100vw);">
-                      <div class="flex flex-col pt-[12px] px-[16px] pb-[16px]">
-                        <!-- Private mode option -->
-                        <div @click="handleShareModeChange('private')"
-                          :class="{'pointer-events-none opacity-50': sharingLoading}"
-                          class="flex items-center gap-[10px] px-[8px] -mx-[8px] py-[8px] rounded-[8px] clickable hover:bg-[var(--fill-tsp-white-main)]">
-                          <div
-                            :class="shareMode === 'private' ? 'bg-[var(--Button-primary-black)]' : 'bg-[var(--fill-tsp-white-dark)]'"
-                            class="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center">
-                            <Lock :size="16" :stroke="shareMode === 'private' ? 'var(--text-onblack)' : 'var(--icon-primary)'" :stroke-width="2" /></div>
-                          <div class="flex flex-col flex-1 min-w-0">
-                            <div class="text-sm font-medium text-[var(--text-primary)]">{{ t('Private Only') }}</div>
-                            <div class="text-[13px] text-[var(--text-tertiary)]">{{ t('Only visible to you') }}</div>
-                          </div><Check :size="20" :class="shareMode === 'private' ? 'ml-auto' : 'ml-auto invisible'" :color="shareMode === 'private' ? 'var(--icon-primary)' : 'var(--icon-tertiary)'" />
-                        </div>
-                        <!-- Public mode option -->
-                        <div @click="handleShareModeChange('public')"
-                          :class="{'pointer-events-none opacity-50': sharingLoading}"
-                          class="flex items-center gap-[10px] px-[8px] -mx-[8px] py-[8px] rounded-[8px] clickable hover:bg-[var(--fill-tsp-white-main)]">
-                          <div
-                            :class="shareMode === 'public' ? 'bg-[var(--Button-primary-black)]' : 'bg-[var(--fill-tsp-white-dark)]'"
-                            class="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center">
-                            <Globe :size="16" :stroke="shareMode === 'public' ? 'var(--text-onblack)' : 'var(--icon-primary)'" :stroke-width="2" /></div>
-                          <div class="flex flex-col flex-1 min-w-0">
-                            <div class="text-sm font-medium text-[var(--text-primary)]">{{ t('Public Access') }}</div>
-                            <div class="text-[13px] text-[var(--text-tertiary)]">{{ t('Anyone with the link can view') }}</div>
-                          </div><Check :size="20" :class="shareMode === 'public' ? 'ml-auto' : 'ml-auto invisible'" :color="shareMode === 'public' ? 'var(--icon-primary)' : 'var(--icon-tertiary)'" />
-                        </div>
-                        <div class="border-t border-[var(--border-main)] mt-[4px]"></div>
-                        
-                        <!-- Show instant share button when in private mode -->
-                        <div v-if="shareMode === 'private'">
-                          <button @click.stop="handleInstantShare"
-                            :disabled="sharingLoading"
-                            class="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors hover:opacity-90 active:opacity-80 bg-[var(--Button-primary-black)] text-[var(--text-onblack)] h-[36px] px-[12px] rounded-[10px] gap-[6px] text-sm min-w-16 mt-[16px] w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                            data-tabindex="" tabindex="-1">
-                            <div v-if="sharingLoading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <Link v-else :size="16" stroke="currentColor" :stroke-width="2" />
-                            {{ sharingLoading ? t('Sharing...') : t('Share Instantly') }}
-                          </button>
-                        </div>
-                        
-                        <!-- Show copy link button when in public mode -->
-                        <div v-else>
-                          <button @click.stop="handleCopyLink"
-                            :class="linkCopied ? 'inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors active:opacity-80 bg-[var(--Button-primary-white)] text-[var(--text-primary)] hover:opacity-70 active:hover-60 h-[36px] px-[12px] rounded-[10px] gap-[6px] text-sm min-w-16 mt-[16px] w-full border border-[var(--border-btn-main)] shadow-none' : 'inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors hover:opacity-90 active:opacity-80 bg-[var(--Button-primary-black)] text-[var(--text-onblack)] h-[36px] px-[12px] rounded-[10px] gap-[6px] text-sm min-w-16 mt-[16px] w-full'"
-                            data-tabindex="" tabindex="-1">
-                            <Link v-if="!linkCopied" :size="16" stroke="currentColor" :stroke-width="2" />
-                            <Check v-else :size="16" color="var(--text-primary)" />
-                            {{ linkCopied ? t('Link Copied') : t('Copy Link') }}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </span>
-              <button @click="handleFileListShow"
-                class="p-[5px] flex items-center justify-center hover:bg-[var(--fill-tsp-white-dark)] rounded-lg cursor-pointer">
-                <FileSearch class="text-[var(--icon-secondary)]" :size="18" />
+              <button class="header-action-btn" @click="handleCopyLink">
+                <Share2 :size="15" />
+                <span>Share</span>
               </button>
+              <button class="icon-header-btn" @click="handleExport">
+                <Download :size="16" />
+              </button>
+              <div class="relative">
+                <button class="icon-header-btn" @click="showOverflow = !showOverflow">
+                  <MoreHorizontal :size="16" />
+                </button>
+                <div v-if="showOverflow" class="absolute top-full right-0 mt-2 w-[180px] rounded-[16px] border border-[var(--border-main)] bg-white shadow-[0px_18px_48px_0px_rgba(0,0,0,0.12)] p-2 z-40">
+                  <button class="overflow-action" @click="renameCurrentTask">Rename task</button>
+                  <button class="overflow-action" @click="handleCopyLink">Share link</button>
+                  <button class="overflow-action text-[#dc2626]" @click="deleteCurrentTask">Delete task</button>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="w-full flex justify-between items-center">
+
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="run-pill">{{ runModeLabel }}</span>
+            <span class="run-pill">Budget {{ spentCredits }}/{{ maxBudget }}</span>
+            <span class="run-pill">{{ permissionsLabel }}</span>
+            <span class="run-pill">{{ riskLabel }}</span>
           </div>
         </div>
         <div class="flex-1"></div>
       </div>
-      <div class="mx-auto w-full max-w-full sm:max-w-[768px] sm:min-w-[390px] flex flex-col flex-1">
+
+      <div class="mx-auto w-full max-w-full sm:max-w-[820px] sm:min-w-[390px] flex flex-col flex-1">
         <div class="flex flex-col w-full gap-[12px] pb-[80px] pt-[12px] flex-1 overflow-y-auto">
-          <ChatMessage v-for="(message, index) in messages" :key="index" :message="message"
+          <ChatMessage
+            v-for="(message, index) in messages"
+            :key="index"
+            :message="message"
             :hideHeader="isConsecutiveAssistant(messages, index)"
+            :modelTier="modelTier"
             @toolClick="handleToolClick" />
 
-          <!-- Loading indicator -->
           <LoadingIndicator v-if="isLoading" :text="$t('Thinking')" />
+
+          <div v-if="isTaskComplete" class="mt-4 rounded-[20px] border border-[var(--border-main)] bg-white px-4 py-4">
+            <div class="flex items-center justify-between gap-4 flex-wrap">
+              <span class="inline-flex items-center gap-2 rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-1 text-[13px] text-[#16a34a]">
+                <CheckCircle2 :size="14" />
+                Task completed
+              </span>
+              <div class="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
+                <span>How was this result?</span>
+                <button v-for="star in 5" :key="star" class="text-lg" :class="star <= rating ? 'text-[#f59e0b]' : 'text-black/20'" @click="rating = star">★</button>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <div class="text-[13px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Suggested follow-ups</div>
+              <div class="mt-3 flex flex-col gap-2">
+                <button v-for="suggestion in followups" :key="suggestion" class="followup-row" @click="applyFollowup(suggestion)">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <span class="w-7 h-7 rounded-full bg-[var(--background-gray-main)] flex items-center justify-center text-[14px]">{{ followupIcon(suggestion) }}</span>
+                    <span class="truncate text-sm text-[var(--text-primary)]">{{ suggestion }}</span>
+                  </div>
+                  <ArrowRight :size="15" class="text-[var(--icon-secondary)]" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="flex flex-col bg-[var(--background-gray-main)] sticky bottom-0">
-          <button @click="handleFollow" v-if="!follow"
-            class="flex items-center justify-center w-[36px] h-[36px] rounded-full bg-[var(--background-white-main)] hover:bg-[var(--background-gray-main)] clickable border border-[var(--border-main)] shadow-[0px_5px_16px_0px_var(--shadow-S),0px_0px_1.25px_0px_var(--shadow-S)] absolute -top-20 left-1/2 -translate-x-1/2">
+          <button @click="handleFollow" v-if="!follow" class="flex items-center justify-center w-[36px] h-[36px] rounded-full bg-[var(--background-white-main)] hover:bg-[var(--background-gray-main)] clickable border border-[var(--border-main)] shadow-[0px_5px_16px_0px_var(--shadow-S),0px_0px_1.25px_0px_var(--shadow-S)] absolute -top-20 left-1/2 -translate-x-1/2">
             <ArrowDown class="text-[var(--icon-primary)]" :size="20" />
           </button>
           <PlanPanel v-if="plan && plan.steps.length > 0" :plan="plan" />
-          <ChatBox v-model="inputMessage" :rows="1" @submit="handleSubmit" :isRunning="isLoading" @stop="handleStop"
+          <ChatBox
+            v-model="inputMessage"
+            :rows="1"
+            @submit="handleSubmit"
+            :isRunning="isLoading"
+            @stop="handleStop"
             :disabled="(currentUser?.credits ?? 0) <= 0"
-            :attachments="attachments" />
+            :attachments="attachments"
+            :placeholder="wideResearch ? 'What topic do you want to research deeply?' : 'Assign a task to Forge...'" />
         </div>
       </div>
     </div>
-    <ToolPanel ref="toolPanel" :size="toolPanelSize" :sessionId="sessionId" :realTime="realTime" 
-      :isShare="false"
-      @jumpToRealTime="jumpToRealTime" />
+
+    <ToolPanel ref="toolPanel" :size="toolPanelSize" :sessionId="sessionId" :realTime="realTime" :isShare="false" @jumpToRealTime="jumpToRealTime" />
   </SimpleBar>
 </template>
 
 <script setup lang="ts">
 import SimpleBar from '../components/SimpleBar.vue';
-import { ref, onMounted, watch, nextTick, onUnmounted, reactive, toRefs } from 'vue';
-import { computed } from 'vue';
+import { ref, onMounted, watch, nextTick, onUnmounted, reactive, toRefs, computed } from 'vue';
 import { useRouter, onBeforeRouteUpdate } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import ChatBox from '../components/ChatBox.vue';
 import ChatMessage from '../components/ChatMessage.vue';
+import ForgeModelDropdown from '../components/ForgeModelDropdown.vue';
 import * as agentApi from '../api/agent';
 import { Message, MessageContent, ToolContent, StepContent, AttachmentsContent, isConsecutiveAssistant } from '../types/message';
 import {
@@ -166,29 +133,26 @@ import {
   PlanEventData,
   AgentSSEEvent,
 } from '../types/event';
-import ToolPanel from '../components/ToolPanel.vue'
+import ToolPanel from '../components/ToolPanel.vue';
 import PlanPanel from '../components/PlanPanel.vue';
-import { ArrowDown, FileSearch, PanelLeft, Lock, Globe, Link, Check, ChevronDown, Bell } from 'lucide-vue-next';
-import ShareIcon from '@/components/icons/ShareIcon.vue';
-import { showErrorToast, showSuccessToast } from '../utils/toast';
+import { ArrowDown, PanelLeft, Share2, Download, MoreHorizontal, UsersRound, ArrowRight, CheckCircle2 } from 'lucide-vue-next';
+import { showErrorToast, showInfoToast, showSuccessToast } from '../utils/toast';
 import type { FileInfo } from '../api/file';
-import { useLeftPanel } from '../composables/useLeftPanel'
-import { useSessionFileList } from '../composables/useSessionFileList'
-import { useFilePanel } from '../composables/useFilePanel'
-import { useAuth } from '../composables/useAuth'
-import { copyToClipboard } from '../utils/dom'
+import { useLeftPanel } from '../composables/useLeftPanel';
+import { useSessionFileList } from '../composables/useSessionFileList';
+import { useFilePanel } from '../composables/useFilePanel';
+import { useAuth } from '../composables/useAuth';
+import { copyToClipboard } from '../utils/dom';
 import { SessionStatus } from '../types/response';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import LoadingIndicator from '@/components/ui/LoadingIndicator.vue';
 
-const router = useRouter()
-const { t } = useI18n()
-const { toggleLeftPanel, isLeftPanelShow } = useLeftPanel()
-const { showSessionFileList } = useSessionFileList()
-const { hideFilePanel } = useFilePanel()
-const { currentUser } = useAuth()
+const router = useRouter();
+const { t } = useI18n();
+const { toggleLeftPanel, isLeftPanelShow } = useLeftPanel();
+const { showSessionFileList } = useSessionFileList();
+const { hideFilePanel } = useFilePanel();
+const { currentUser } = useAuth();
 
-// Create initial state factory
 const createInitialState = () => ({
   inputMessage: '',
   isLoading: false,
@@ -200,27 +164,23 @@ const createInitialState = () => ({
   title: t('New Chat'),
   plan: undefined as PlanEventData | undefined,
   lastNoMessageTool: undefined as ToolContent | undefined,
-  lastMessageTool: undefined as ToolContent | undefined,
   lastTool: undefined as ToolContent | undefined,
   lastEventId: undefined as string | undefined,
   cancelCurrentChat: null as (() => void) | null,
   attachments: [] as FileInfo[],
-  shareMode: 'private' as 'private' | 'public', // Default to private mode
-  linkCopied: false,
-  sharingLoading: false // Loading state for share operations
-  ,
   goal: '',
   maxBudget: 0,
   spentCredits: 0,
   runMode: 'auto',
   permissions: 'standard',
   riskLevel: 'low',
+  modelTier: 'lite',
+  wideResearch: false,
+  isTaskComplete: false,
+  followups: [] as string[],
 });
 
-// Create reactive state
 const state = reactive(createInitialState());
-
-// Destructure refs from reactive state
 const {
   inputMessage,
   isLoading,
@@ -232,60 +192,50 @@ const {
   title,
   plan,
   lastNoMessageTool,
-  lastMessageTool,
   lastTool,
   lastEventId,
   cancelCurrentChat,
   attachments,
-  shareMode,
-  linkCopied,
-  sharingLoading,
   goal,
   maxBudget,
   spentCredits,
   runMode,
   permissions,
   riskLevel,
+  modelTier,
+  wideResearch,
+  isTaskComplete,
+  followups,
 } = toRefs(state);
 
-// Non-state refs that don't need reset
-const toolPanel = ref<InstanceType<typeof ToolPanel>>()
+const toolPanel = ref<InstanceType<typeof ToolPanel>>();
 const simpleBarRef = ref<InstanceType<typeof SimpleBar>>();
 const observerRef = ref<HTMLDivElement>();
 const chatContainerRef = ref<HTMLDivElement>();
-const runModeLabel = computed(() => runMode.value === 'checkpoint' ? 'Checkpoint Mode' : 'Auto Mode');
+const rating = ref(0);
+const showOverflow = ref(false);
+
+const runModeLabel = computed(() => runMode.value === 'checkpoint' ? 'Checkpoint' : 'Auto Mode');
 const permissionsLabel = computed(() => permissions.value === 'guarded' ? 'Guarded Access' : 'Standard Access');
 const riskLabel = computed(() => `${String(riskLevel.value || 'low').charAt(0).toUpperCase()}${String(riskLevel.value || 'low').slice(1)} Risk`);
 
 const cleanErrorMessage = (raw: string): string => {
   const source = String(raw || '').trim();
-  if (!source) {
-    return 'Forge hit a blocker on this run. Retry the task or adjust the prompt.';
-  }
-  if (source.toLowerCase().includes('404')) {
-    return 'Forge hit a dead page while browsing. Try again and it will move to a different source.';
-  }
-  if (source.toLowerCase().includes('budget')) {
-    return source;
-  }
-  if (source.toLowerCase().includes('unexpected tokens remaining')) {
-    return 'Forge received a malformed tool response during browsing. Retry the run and it should recover cleanly.';
-  }
+  if (!source) return 'Forge hit a blocker on this run. Retry the task or adjust the prompt.';
+  if (source.toLowerCase().includes('404')) return 'Forge hit a dead page while browsing. Try again and it will move to a different source.';
+  if (source.toLowerCase().includes('unexpected tokens remaining')) return 'Forge received a malformed tool response during browsing. Retry the run and it should recover cleanly.';
   return source.length > 220 ? `${source.slice(0, 217)}...` : source;
-}
+};
 
-// Reset all refs to their initial values
 const resetState = () => {
-  // Cancel any existing chat connection
   if (cancelCurrentChat.value) {
     cancelCurrentChat.value();
   }
-
-  // Reset reactive state to initial values
   Object.assign(state, createInitialState());
+  rating.value = 0;
+  showOverflow.value = false;
 };
 
-// Watch message changes and automatically scroll to bottom
 watch(messages, async () => {
   await nextTick();
   if (follow.value) {
@@ -293,47 +243,58 @@ watch(messages, async () => {
   }
 }, { deep: true });
 
-
-
 const getLastStep = (): StepContent | undefined => {
   return messages.value.filter(message => message.type === 'step').pop()?.content as StepContent;
-}
+};
 
-// Handle message event
+const buildFallbackFollowups = () => {
+  const base = goal.value || title.value || 'this task';
+  return [
+    `Summarize the key findings from ${base}`,
+    `Turn ${base} into a spreadsheet`,
+    `Create slides from ${base}`,
+    `Give me the next best actions for ${base}`,
+  ];
+};
+
+const loadFollowups = async () => {
+  if (!sessionId.value) return;
+  try {
+    followups.value = await agentApi.getSessionFollowups(sessionId.value);
+  } catch {
+    followups.value = buildFallbackFollowups();
+  }
+};
+
+const markTaskComplete = async () => {
+  isTaskComplete.value = true;
+  await loadFollowups();
+};
+
 const handleMessageEvent = (messageData: MessageEventData) => {
   messages.value.push({
     type: messageData.role,
-    content: {
-      ...messageData
-    } as MessageContent,
+    content: { ...messageData } as MessageContent,
   });
 
   if (messageData.attachments?.length > 0) {
     messages.value.push({
       type: 'attachments',
-      content: {
-        ...messageData
-      } as AttachmentsContent,
+      content: { ...messageData } as AttachmentsContent,
     });
   }
-}
+};
 
-// Handle tool event
 const handleToolEvent = (toolData: ToolEventData) => {
   const lastStep = getLastStep();
-  let toolContent: ToolContent = {
-    ...toolData
-  }
+  const toolContent: ToolContent = { ...toolData };
   if (lastTool.value && lastTool.value.tool_call_id === toolContent.tool_call_id) {
     Object.assign(lastTool.value, toolContent);
   } else {
     if (lastStep?.status === 'running') {
       lastStep.tools.push(toolContent);
     } else {
-      messages.value.push({
-        type: 'tool',
-        content: toolContent,
-      });
+      messages.value.push({ type: 'tool', content: toolContent });
     }
     lastTool.value = toolContent;
   }
@@ -343,70 +304,45 @@ const handleToolEvent = (toolData: ToolEventData) => {
       toolPanel.value?.showToolPanel(toolContent, true);
     }
   }
-}
+};
 
-// Handle step event
 const handleStepEvent = (stepData: StepEventData) => {
   const lastStep = getLastStep();
   if (stepData.status === 'running') {
     messages.value.push({
       type: 'step',
-      content: {
-        ...stepData,
-        tools: []
-      } as StepContent,
+      content: { ...stepData, tools: [] } as StepContent,
     });
+    isTaskComplete.value = false;
   } else if (stepData.status === 'completed') {
-    if (lastStep) {
-      lastStep.status = stepData.status;
-    }
+    if (lastStep) lastStep.status = stepData.status;
   } else if (stepData.status === 'failed') {
     isLoading.value = false;
     plan.value = undefined;
   }
-}
+};
 
-// Handle error event
 const handleErrorEvent = (errorData: ErrorEventData) => {
   isLoading.value = false;
-  let errorMessage = 'Something went wrong while processing this task. Please try again.';
-
-  // Show more informative error messages if available
-  if (errorData.error) {
-    const cleanedError = cleanErrorMessage(errorData.error);
-    const msg = cleanedError.toLowerCase();
-
-    // Check for specific error types
-    if (msg.includes('timeout') || msg.includes('timed out')) {
-      errorMessage = 'Browser navigation timed out. The page took too long to load. Moving to next step...';
-    } else if (msg.includes('navigation')) {
-      errorMessage = `Browser navigation error: ${cleanedError}`;
-    } else {
-      errorMessage = `Run blocked: ${cleanedError}`;
-    }
-  }
-
+  const cleanedError = cleanErrorMessage(errorData.error || '');
   messages.value.push({
     type: 'assistant',
     content: {
-      content: errorMessage,
-      timestamp: errorData.timestamp
+      content: `Run blocked: ${cleanedError}`,
+      timestamp: errorData.timestamp,
     } as MessageContent,
   });
-}
+};
 
-// Handle title event
 const handleTitleEvent = (titleData: TitleEventData) => {
   title.value = titleData.title;
-}
+};
 
-// Handle plan event
 const handlePlanEvent = (planData: PlanEventData) => {
   plan.value = planData;
-}
+};
 
-// Main event handler function
-const handleEvent = (event: AgentSSEEvent) => {
+const handleEvent = async (event: AgentSSEEvent) => {
   if (event.event === 'message') {
     handleMessageEvent(event.data as MessageEventData);
   } else if (event.event === 'tool') {
@@ -414,9 +350,8 @@ const handleEvent = (event: AgentSSEEvent) => {
   } else if (event.event === 'step') {
     handleStepEvent(event.data as StepEventData);
   } else if (event.event === 'done') {
-    //isLoading.value = false;
-  } else if (event.event === 'wait') {
-    // TODO: handle wait event
+    isLoading.value = false;
+    await markTaskComplete();
   } else if (event.event === 'error') {
     handleErrorEvent(event.data as ErrorEventData);
   } else if (event.event === 'title') {
@@ -425,85 +360,64 @@ const handleEvent = (event: AgentSSEEvent) => {
     handlePlanEvent(event.data as PlanEventData);
   }
   lastEventId.value = event.data.event_id;
-}
+};
 
 const handleSubmit = () => {
   chat(inputMessage.value, attachments.value);
-}
+};
 
 const chat = async (message: string = '', files: FileInfo[] = []) => {
   if (!sessionId.value) return;
 
-  // Cancel any existing chat connection before starting a new one
   if (cancelCurrentChat.value) {
     cancelCurrentChat.value();
     cancelCurrentChat.value = null;
   }
 
   if (message.trim()) {
-    // Add user message to conversation list
     messages.value.push({
       type: 'user',
-      content: {
-        content: message,
-        timestamp: Math.floor(Date.now() / 1000)
-      } as MessageContent,
+      content: { content: message, timestamp: Math.floor(Date.now() / 1000) } as MessageContent,
     });
   }
 
   if (files.length > 0) {
     messages.value.push({
       type: 'attachments',
-      content: {
-        role: 'user',
-        attachments: files
-      } as AttachmentsContent,
+      content: { role: 'user', attachments: files } as AttachmentsContent,
     });
   }
 
-  // Automatically enable follow mode when sending message
   follow.value = true;
-
-  // Clear input field and attachments
   inputMessage.value = '';
   attachments.value = [];
   isLoading.value = true;
+  isTaskComplete.value = false;
 
   try {
-    // Use the split event handler function and store the cancel function
     cancelCurrentChat.value = await agentApi.chatWithSession(
       sessionId.value,
       message,
       lastEventId.value,
-      files.map((file: FileInfo) => ({file_id : file.file_id, 
-                                        filename : file.filename})),
+      files.map((file: FileInfo) => ({ file_id: file.file_id, filename: file.filename })),
       {
         onOpen: () => {
-          console.log('Chat opened');
           isLoading.value = true;
         },
         onMessage: ({ event, data }) => {
-          handleEvent({
+          void handleEvent({
             event: event as AgentSSEEvent['event'],
-            data: data as AgentSSEEvent['data']
+            data: data as AgentSSEEvent['data'],
           });
         },
         onClose: () => {
-          console.log('Chat closed');
           isLoading.value = false;
-          // Clear the cancel function when connection is closed normally
-          if (cancelCurrentChat.value) {
-            cancelCurrentChat.value = null;
-          }
+          cancelCurrentChat.value = null;
         },
-        onError: (error) => {
-          console.error('Chat error:', error);
+        onError: () => {
           isLoading.value = false;
-          // Clear the cancel function when there's an error
-          if (cancelCurrentChat.value) {
-            cancelCurrentChat.value = null;
-          }
-        }
+          cancelCurrentChat.value = null;
+        },
       }
     );
   } catch (error) {
@@ -511,7 +425,7 @@ const chat = async (message: string = '', files: FileInfo[] = []) => {
     isLoading.value = false;
     cancelCurrentChat.value = null;
   }
-}
+};
 
 const restoreSession = async () => {
   if (!sessionId.value) {
@@ -519,26 +433,26 @@ const restoreSession = async () => {
     return;
   }
   const session = await agentApi.getSession(sessionId.value);
-  // Initialize share mode based on session state
-  shareMode.value = session.is_shared ? 'public' : 'private';
   goal.value = session.goal || '';
   maxBudget.value = session.max_budget || 0;
   spentCredits.value = session.spent_credits || session.estimated_cost || 0;
   runMode.value = session.mode || 'auto';
   permissions.value = session.permissions || 'standard';
   riskLevel.value = session.risk_level || 'low';
+  modelTier.value = session.model_tier || 'lite';
+  wideResearch.value = !!session.wide_research;
   realTime.value = false;
   for (const event of session.events) {
-    handleEvent(event);
+    await handleEvent(event);
   }
   realTime.value = true;
   if (session.status === SessionStatus.RUNNING || session.status === SessionStatus.PENDING) {
     await chat();
+  } else if (session.status === SessionStatus.COMPLETED) {
+    await markTaskComplete();
   }
   agentApi.clearUnreadMessageCount(sessionId.value);
-}
-
-
+};
 
 onBeforeRouteUpdate((to, _, next) => {
   toolPanel.value?.hideToolPanel();
@@ -546,35 +460,29 @@ onBeforeRouteUpdate((to, _, next) => {
   resetState();
   if (to.params.sessionId) {
     messages.value = [];
-    sessionId.value = String(to.params.sessionId) as string;
-    restoreSession();
+    sessionId.value = String(to.params.sessionId);
+    void restoreSession();
   }
   next();
-})
+});
 
-// Initialize active conversation
 onMounted(() => {
   hideFilePanel();
   const routeParams = router.currentRoute.value.params;
   if (routeParams.sessionId) {
-    // If sessionId is included in URL, use it directly
-    sessionId.value = String(routeParams.sessionId) as string;
-    // Get initial message from history.state
+    sessionId.value = String(routeParams.sessionId);
     const message = history.state?.message;
     const files: FileInfo[] = history.state?.files;
     history.replaceState({}, document.title);
     if (message) {
-      chat(message, files);
+      void chat(message, files);
     } else {
-      restoreSession();
+      void restoreSession();
     }
   }
-
-
 });
 
 onUnmounted(() => {
-  // Properly cancel any active SSE connection to prevent memory leaks
   try {
     if (cancelCurrentChat.value) {
       cancelCurrentChat.value();
@@ -583,126 +491,176 @@ onUnmounted(() => {
   } catch (error) {
     console.error('Error cancelling chat on unmount:', error);
   }
-})
+});
 
-const isLastNoMessageTool = (tool: ToolContent) => {
-  return tool.tool_call_id === lastNoMessageTool.value?.tool_call_id;
-}
+const isLastNoMessageTool = (tool: ToolContent) => tool.tool_call_id === lastNoMessageTool.value?.tool_call_id;
 
 const isLiveTool = (tool: ToolContent) => {
-  if (tool.status === 'calling') {
-    return true;
-  }
-  if (!isLastNoMessageTool(tool)) {
-    return false;
-  }
-  if (tool.timestamp && tool.timestamp > Date.now() - 5 * 60 * 1000) {
-    return true;
-  }
+  if (tool.status === 'calling') return true;
+  if (!isLastNoMessageTool(tool)) return false;
+  if (tool.timestamp && tool.timestamp > Date.now() - 5 * 60 * 1000) return true;
   return false;
-}
+};
 
 const handleToolClick = (tool: ToolContent) => {
   realTime.value = false;
   if (sessionId.value) {
     toolPanel.value?.showToolPanel(tool, isLiveTool(tool));
   }
-}
+};
 
 const jumpToRealTime = () => {
   realTime.value = true;
   if (lastNoMessageTool.value) {
     toolPanel.value?.showToolPanel(lastNoMessageTool.value, isLiveTool(lastNoMessageTool.value));
   }
-}
+};
 
 const handleFollow = () => {
   follow.value = true;
   simpleBarRef.value?.scrollToBottom();
-}
+};
 
-const handleScroll = (_: Event) => {
+const handleScroll = () => {
   follow.value = simpleBarRef.value?.isScrolledToBottom() ?? false;
-}
+};
 
 const handleStop = () => {
   if (sessionId.value) {
     agentApi.stopSession(sessionId.value);
   }
-}
-
-const handleFileListShow = () => {
-  showSessionFileList()
-}
-
-// Share functionality handlers
-const handleShareModeChange = async (mode: 'private' | 'public') => {
-  if (!sessionId.value || sharingLoading.value) return;
-  
-  // If mode is same as current, no need to call API
-  if (shareMode.value === mode) {
-    linkCopied.value = false;
-    return;
-  }
-  
-  try {
-    sharingLoading.value = true;
-    
-    if (mode === 'public') {
-      await agentApi.shareSession(sessionId.value);
-    } else {
-      await agentApi.unshareSession(sessionId.value);
-    }
-    
-    shareMode.value = mode;
-    linkCopied.value = false;
-  } catch (error) {
-    console.error('Error changing share mode:', error);
-    showErrorToast(t('Failed to change sharing settings'));
-  } finally {
-    sharingLoading.value = false;
-  }
-}
-
-const handleInstantShare = async () => {
-  if (!sessionId.value) return;
-  
-  try {
-    sharingLoading.value = true;
-    await agentApi.shareSession(sessionId.value);
-    shareMode.value = 'public';
-    linkCopied.value = false;
-  } catch (error) {
-    console.error('Error sharing session:', error);
-    showErrorToast(t('Failed to share session'));
-  } finally {
-    sharingLoading.value = false;
-  }
-}
+};
 
 const handleCopyLink = async () => {
   if (!sessionId.value) return;
-  
   const shareUrl = `${window.location.origin}/share/${sessionId.value}`;
-  
-  try {
-    const success = await copyToClipboard(shareUrl);
-    
-    if (success) {
-      linkCopied.value = true;
-      setTimeout(() => {
-        linkCopied.value = false;
-      }, 3000);
-      showSuccessToast(t('Link copied to clipboard'));
-    } else {
-      showErrorToast(t('Failed to copy link'));
-    }
-  } catch (error) {
-    console.error('Error copying share link:', error);
-    showErrorToast(t('Failed to copy link'));
+  const success = await copyToClipboard(shareUrl);
+  if (success) {
+    showSuccessToast('Copied!');
+  } else {
+    showErrorToast('Failed to copy link');
   }
-}
+  showOverflow.value = false;
+};
+
+const handleExport = () => {
+  const body = messages.value.map((message) => {
+    if ('content' in message.content && typeof (message.content as any).content === 'string') {
+      return `## ${message.type}\n\n${(message.content as any).content}`;
+    }
+    return `## ${message.type}\n\n${JSON.stringify(message.content, null, 2)}`;
+  }).join('\n\n');
+  const blob = new Blob([`# ${title.value}\n\n${body}`], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${(title.value || 'forge-task').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.md`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
+
+const renameCurrentTask = async () => {
+  if (!sessionId.value) return;
+  const nextTitle = window.prompt('Rename task', title.value || '');
+  if (!nextTitle?.trim()) return;
+  await agentApi.renameSession(sessionId.value, nextTitle.trim());
+  title.value = nextTitle.trim();
+  showOverflow.value = false;
+};
+
+const deleteCurrentTask = async () => {
+  if (!sessionId.value || !window.confirm('Delete this task?')) return;
+  await agentApi.deleteSession(sessionId.value);
+  showOverflow.value = false;
+  router.push('/');
+};
+
+const applyFollowup = (suggestion: string) => {
+  inputMessage.value = suggestion;
+  void handleSubmit();
+};
+
+const followupIcon = (suggestion: string) => {
+  const lower = suggestion.toLowerCase();
+  if (lower.includes('spreadsheet')) return '📊';
+  if (lower.includes('slides')) return '📁';
+  if (lower.includes('summarize')) return '💬';
+  return '🔧';
+};
 </script>
 
 <style scoped>
+.header-action-btn,
+.icon-header-btn,
+.run-pill,
+.followup-row,
+.overflow-action {
+  transition: background-color 0.15s ease;
+}
+
+.header-action-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-btn-main);
+  background: var(--background-white-main);
+  color: var(--text-secondary);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-header-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-btn-main);
+  background: var(--background-white-main);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-action-btn:hover,
+.icon-header-btn:hover,
+.followup-row:hover,
+.overflow-action:hover {
+  background: var(--fill-tsp-white-light);
+}
+
+.run-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-btn-main);
+  background: var(--background-white-main);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.followup-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border-main);
+  background: var(--background-gray-main);
+  padding: 10px 12px;
+}
+
+.overflow-action {
+  width: 100%;
+  height: 36px;
+  border-radius: 10px;
+  padding: 0 12px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-primary);
+}
 </style>

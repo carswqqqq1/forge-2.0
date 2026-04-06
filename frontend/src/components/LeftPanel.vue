@@ -3,54 +3,47 @@
     <div
       :class="isLeftPanelShow
         ? 'flex flex-col overflow-hidden bg-[var(--background-nav)] h-full opacity-100 translate-x-0'
-        : 'flex flex-col overflow-hidden bg-[var(--background-nav)] fixed top-1 start-1 bottom-1 z-[1] border-1 border-[var(--border-main)] rounded-xl shadow-[0px_8px_32px_0px_rgba(0,0,0,0.16),0px_0px_0px_1px_rgba(0,0,0,0.06)] opacity-0 pointer-events-none -translate-x-10'"
+        : 'flex flex-col overflow-hidden bg-[var(--background-nav)] fixed top-1 start-1 bottom-1 z-[1] border-1 border-[var(--border-main)] rounded-xl shadow-[0px_8px_32px_0px_rgba(0,0,0,0.08),0px_0px_0px_1px_rgba(0,0,0,0.04)] opacity-0 pointer-events-none -translate-x-10'"
       :style="innerPanelStyle">
       <div class="flex items-center justify-between px-3 h-[52px] flex-shrink-0">
-        <button class="flex h-7 w-7 items-center justify-center cursor-pointer hover:bg-[var(--fill-tsp-gray-main)] rounded-md" @click="toggleLeftPanel">
-          <PanelLeft class="h-5 w-5 text-[var(--icon-secondary)]" />
-        </button>
-        <button
-          class="flex h-8 w-8 items-center justify-center cursor-pointer hover:bg-[var(--fill-tsp-gray-main)] rounded-md"
-          @click="showInfoToast('No notifications yet')">
+        <div class="flex items-center gap-2">
+          <button class="flex h-7 w-7 items-center justify-center cursor-pointer hover:bg-[var(--fill-tsp-gray-main)] rounded-md" @click="toggleLeftPanel">
+            <PanelLeft class="h-5 w-5 text-[var(--icon-secondary)]" />
+          </button>
+          <div class="flex items-center gap-1.5">
+            <Bot :size="16" class="text-[var(--icon-primary)]" />
+            <span class="text-[14px] font-semibold tracking-[-0.02em] text-[var(--text-primary)] lowercase">forge</span>
+          </div>
+        </div>
+        <button class="flex h-8 w-8 items-center justify-center cursor-pointer hover:bg-[var(--fill-tsp-gray-main)] rounded-md" @click="showInfoToast('No notifications yet')">
           <Bell :size="16" class="text-[var(--icon-secondary)]" />
         </button>
       </div>
 
       <div class="flex flex-col flex-1 min-h-0 px-[8px] pb-0">
-        <button
-          @click="handleNewTaskClick"
-          class="flex items-center rounded-[14px] cursor-pointer transition-colors w-full gap-[12px] h-[44px] ps-[12px] pe-[12px] mb-1 bg-[var(--fill-tsp-white-main)] hover:bg-[var(--fill-tsp-white-light)]">
+        <button @click="handleNewTaskClick" class="new-task-button">
           <SquarePen :size="18" class="text-[var(--text-primary)] shrink-0" />
-          <span class="truncate text-[14px] text-[var(--text-primary)] font-medium">New Task</span>
+          <span class="truncate text-[14px] text-[var(--text-primary)] font-medium">New task</span>
         </button>
 
-        <button class="sidebar-nav-item" @click="showInfoToast('Agents workspace coming soon')">
+        <button class="sidebar-nav-item" @click="router.push('/agents')">
           <Bot :size="18" class="text-[var(--icon-secondary)] shrink-0" />
           <span>Agents</span>
         </button>
-        <button class="sidebar-nav-item" @click="focusSearchInput">
+        <button class="sidebar-nav-item" @click="openSearchModal">
           <SearchIconLucide :size="18" class="text-[var(--icon-secondary)] shrink-0" />
           <span>Search</span>
         </button>
-        <button class="sidebar-nav-item" @click="showInfoToast('Library coming soon')">
+        <button class="sidebar-nav-item" @click="router.push('/library')">
           <Library :size="18" class="text-[var(--icon-secondary)] shrink-0" />
           <span>Library</span>
         </button>
 
-        <div v-if="showSearchInput || searchQuery" class="px-[4px] py-2">
-          <input
-            ref="searchInputRef"
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search tasks"
-            class="w-full h-9 rounded-[10px] border border-[var(--border-main)] bg-[var(--background-white-main)] px-3 text-sm outline-none" />
-        </div>
-
         <div class="mx-2 my-2 border-t border-[var(--border-main)]"></div>
 
         <div class="flex items-center justify-between px-[10px] py-[8px]">
-          <span class="text-[13px] leading-[18px] text-[var(--text-tertiary)] font-medium">Projects</span>
-          <button class="flex h-7 w-7 items-center justify-center rounded-md hover:bg-[var(--fill-tsp-white-light)]" @click="createProject">
+          <span class="section-label">Projects</span>
+          <button class="icon-btn" @click="createProject">
             <Plus :size="16" class="text-[var(--icon-secondary)]" />
           </button>
         </div>
@@ -67,7 +60,6 @@
                 <FolderOpen v-if="expandedProjects[project.id]" :size="16" class="text-[var(--icon-secondary)] shrink-0" />
                 <Folder v-else :size="16" class="text-[var(--icon-secondary)] shrink-0" />
                 <span class="truncate text-[13px] text-[var(--text-primary)]">{{ project.name }}</span>
-                <span class="text-[11px] text-[var(--text-tertiary)]">{{ projectSessionCount(project.id) }}</span>
               </button>
               <button class="flex h-6 w-6 items-center justify-center rounded-md hover:bg-[var(--fill-tsp-white-main)]" @click="addCurrentTaskToProject(project.id)">
                 <Plus :size="14" class="text-[var(--icon-secondary)]" />
@@ -87,10 +79,9 @@
 
         <div class="flex flex-col flex-1 min-h-0 overflow-hidden">
           <div class="flex items-center justify-between px-[10px] py-[8px]">
-            <span class="text-[13px] leading-[18px] text-[var(--text-tertiary)] font-medium">All Tasks</span>
-            <button class="flex items-center gap-1 h-7 px-2 rounded-md hover:bg-[var(--fill-tsp-white-light)]" @click="cycleSortMode">
-              <ArrowUpDown :size="14" class="text-[var(--icon-secondary)]" />
-              <span class="text-[11px] text-[var(--text-tertiary)] uppercase">{{ sortMode }}</span>
+            <span class="section-label lowercase">All tasks</span>
+            <button class="icon-btn" @click="cycleSortMode" :title="sortMode === 'date' ? 'Sort by date' : 'Sort by name'">
+              <ListFilter :size="14" class="text-[var(--icon-secondary)]" />
             </button>
           </div>
 
@@ -110,16 +101,27 @@
         </div>
       </div>
 
-      <div class="mt-auto border-t border-[var(--border-main)] px-[10px] py-[10px] flex items-center justify-between">
-        <button class="flex h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--fill-tsp-white-light)]" @click="openSettingsDialog('settings')">
-          <Settings2 :size="16" class="text-[var(--icon-secondary)]" />
+      <div class="mt-auto px-[10px] pb-[10px]">
+        <button class="w-full flex items-center justify-between rounded-[12px] border border-[var(--border-main)] bg-[var(--background-white-main)] px-3 py-2 text-left hover:bg-[var(--fill-tsp-white-light)]" @click="showInfoToast('Referral flow coming soon')">
+          <div class="flex flex-col">
+            <span class="text-[12px] font-medium text-[var(--text-primary)]">Share Forge with a friend</span>
+            <span class="text-[11px] text-[var(--text-tertiary)]">Get 500 credits each</span>
+          </div>
+          <ChevronRight :size="14" class="text-[var(--icon-secondary)]" />
         </button>
-        <div class="flex items-center gap-1">
-          <button class="flex h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--fill-tsp-white-light)]" @click="showInfoToast('List view active')">
-            <Rows3 :size="16" class="text-[var(--icon-secondary)]" />
+
+        <div class="mt-2 border-t border-[var(--border-main)] pt-2 flex items-center gap-1">
+          <button class="bottom-icon-btn" @click="router.push('/agents')">
+            <UserRound :size="16" class="text-[var(--icon-secondary)]" />
           </button>
-          <button class="flex h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--fill-tsp-white-light)]" @click="showInfoToast('Board view coming soon')">
-            <Columns2 :size="16" class="text-[var(--icon-secondary)]" />
+          <button class="bottom-icon-btn" @click="router.push('/integrations')">
+            <Grid2x2 :size="16" class="text-[var(--icon-secondary)]" />
+          </button>
+          <button class="bottom-icon-btn" @click="showInfoToast('Forge support chat is coming soon')">
+            <MessageCircleMore :size="16" class="text-[var(--icon-secondary)]" />
+          </button>
+          <button class="bottom-icon-btn ms-auto" @click="openSettingsDialog('settings')">
+            <Settings2 :size="16" class="text-[var(--icon-secondary)]" />
           </button>
         </div>
       </div>
@@ -138,20 +140,23 @@ import {
   Folder,
   FolderOpen,
   Plus,
-  ArrowUpDown,
   Bell,
   Settings2,
-  Rows3,
-  Columns2,
+  UserRound,
+  Grid2x2,
+  MessageCircleMore,
+  ListFilter,
+  ChevronRight,
 } from 'lucide-vue-next';
 import SessionItem from './SessionItem.vue';
 import { useLeftPanel } from '../composables/useLeftPanel';
-import { ref, onMounted, watch, onUnmounted, computed, nextTick, reactive } from 'vue';
+import { ref, onMounted, watch, onUnmounted, computed, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getSessionsSSE, getSessions } from '../api/agent';
 import { ListSessionItem } from '../types/response';
 import { showInfoToast } from '../utils/toast';
 import { useSettingsDialog } from '../composables/useSettingsDialog';
+import { useSearchModal } from '../composables/useSearchModal';
 
 interface ProjectItem {
   id: string;
@@ -161,33 +166,28 @@ interface ProjectItem {
 
 const { isLeftPanelShow, toggleLeftPanel } = useLeftPanel();
 const { openSettingsDialog } = useSettingsDialog();
+const { openSearchModal } = useSearchModal();
 const route = useRoute();
 const router = useRouter();
 
 const sessions = ref<ListSessionItem[]>([]);
 const cancelGetSessionsSSE = ref<(() => void) | null>(null);
 const scrollContainerRef = ref<HTMLElement | null>(null);
-const searchInputRef = ref<HTMLInputElement | null>(null);
 const searchQuery = ref('');
-const showSearchInput = ref(false);
 const sortMode = ref<'date' | 'name'>('date');
 const expandedProjects = reactive<Record<string, boolean>>({});
 const projects = ref<ProjectItem[]>([]);
 
 const PROJECTS_KEY = 'forge-projects-v1';
-
 const panelStyle = computed(() => (
   isLeftPanelShow.value
     ? 'width: 300px; transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);'
     : 'width: 24px; transition: width 0.36s cubic-bezier(0.4, 0, 0.2, 1);'
 ));
-
 const innerPanelStyle = computed(() => (
   `${isLeftPanelShow.value ? 'width: 300px;' : 'width: 0px;'} transition: opacity 0.2s, transform 0.2s, width 0.2s;`
 ));
-
 const currentSessionId = computed(() => String(route.params.sessionId || ''));
-
 const normalize = (value: string | null | undefined) => (value || '').toLowerCase();
 
 const matchesSearch = (session: ListSessionItem) => {
@@ -211,12 +211,9 @@ const unassignedSessions = computed(() => {
 });
 
 const visibleSessions = computed(() => sortSessions(unassignedSessions.value.filter(matchesSearch)));
-
 const filteredProjects = computed(() => {
   return projects.value.filter((project) => sessionsForProject(project.id).length > 0 || !searchQuery.value.trim());
 });
-
-const projectSessionCount = (projectId: string) => sessionsForProject(projectId).length;
 
 const sessionsForProject = (projectId: string) => {
   const project = projects.value.find((item) => item.id === projectId);
@@ -235,9 +232,7 @@ const loadProjects = () => {
     const raw = localStorage.getItem(PROJECTS_KEY);
     projects.value = raw ? JSON.parse(raw) : [];
     for (const project of projects.value) {
-      if (!(project.id in expandedProjects)) {
-        expandedProjects[project.id] = true;
-      }
+      if (!(project.id in expandedProjects)) expandedProjects[project.id] = true;
     }
   } catch {
     projects.value = [];
@@ -275,19 +270,11 @@ const toggleProject = (projectId: string) => {
   expandedProjects[projectId] = !expandedProjects[projectId];
 };
 
-const focusSearchInput = async () => {
-  showSearchInput.value = true;
-  await nextTick();
-  searchInputRef.value?.focus();
-};
-
 const cycleSortMode = () => {
   sortMode.value = sortMode.value === 'date' ? 'name' : 'date';
 };
 
-const handleListScroll = () => {
-  return;
-};
+const handleListScroll = () => {};
 
 const updateSessions = async () => {
   try {
@@ -333,7 +320,7 @@ const handleSessionDeleted = (sessionId: string) => {
 const handleKeydown = (event: KeyboardEvent) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault();
-    handleNewTaskClick();
+    openSearchModal();
   }
 };
 
@@ -361,6 +348,18 @@ watch(projects, () => {
 </script>
 
 <style scoped>
+.new-task-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+  height: 44px;
+  padding: 0 12px;
+  margin-bottom: 4px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.72);
+}
+
 .sidebar-nav-item {
   display: flex;
   align-items: center;
@@ -369,12 +368,33 @@ watch(projects, () => {
   height: 36px;
   padding: 0 10px;
   border-radius: 10px;
-  color: var(--text-primary);
+  color: #374151;
   font-size: 14px;
+  font-weight: 500;
   transition: background-color 0.15s ease;
 }
 
-.sidebar-nav-item:hover {
+.sidebar-nav-item:hover,
+.new-task-button:hover,
+.icon-btn:hover,
+.bottom-icon-btn:hover {
   background: var(--fill-tsp-white-light);
+}
+
+.section-label {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.icon-btn,
+.bottom-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
 }
 </style>

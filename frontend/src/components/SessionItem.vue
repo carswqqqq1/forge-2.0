@@ -9,9 +9,13 @@
 
     <div class="shrink-0 size-[14px] flex items-center justify-center">
       <LoaderCircle v-if="statusType === 'running'" :size="14" class="animate-spin text-[#2b6cf6]" />
-      <CheckCircle2 v-else-if="statusType === 'done'" :size="14" class="text-[#17a34a]" />
-      <CircleX v-else-if="statusType === 'failed'" :size="14" class="text-[#dc2626]" />
-      <Circle v-else :size="14" class="text-[var(--icon-tertiary)] fill-[var(--fill-tsp-white-dark)]" />
+      <div v-else-if="statusType === 'done'" class="status-badge status-done">
+        <Check :size="9" class="text-white" />
+      </div>
+      <div v-else-if="statusType === 'failed'" class="status-badge status-failed">
+        <X :size="9" class="text-white" />
+      </div>
+      <Circle v-else :size="12" class="text-[#9ca3af]" />
     </div>
 
     <div class="flex-1 min-w-0 flex gap-[6px] items-center text-[14px] text-[var(--text-primary)]">
@@ -21,9 +25,6 @@
     </div>
 
     <div class="shrink-0 flex items-center gap-1">
-      <span class="text-[11px] text-[var(--text-tertiary)] group-hover:hidden">
-        {{ relativeTime }}
-      </span>
       <div
         @click.stop="handleSessionMenuClick"
         class="group-hover:flex hidden size-8 rounded-[8px] cursor-pointer items-center justify-center hover:bg-[var(--fill-tsp-white-light)]"
@@ -43,9 +44,9 @@ import {
   FileText,
   Globe,
   LoaderCircle,
-  CheckCircle2,
   Circle,
-  CircleX,
+  Check,
+  X,
   PencilLine,
   Share2,
   Trash,
@@ -102,23 +103,6 @@ const statusType = computed<'running' | 'done' | 'failed' | 'pending'>(() => {
   }
   if (props.session.status === SessionStatus.COMPLETED) return 'done';
   return 'pending';
-});
-
-const relativeTime = computed(() => {
-  if (!props.session.latest_message_at) return '';
-  const diffSeconds = Math.max(1, Math.floor(Date.now() / 1000) - props.session.latest_message_at);
-  if (diffSeconds < 60) return 'now';
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  if (diffMinutes < 60) return `${diffMinutes}m`;
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d`;
-  const diffWeeks = Math.floor(diffDays / 7);
-  if (diffWeeks < 5) return `${diffWeeks}w`;
-  const diffMonths = Math.floor(diffDays / 30);
-  if (diffMonths < 12) return `${diffMonths}mo`;
-  return `${Math.floor(diffDays / 365)}y`;
 });
 
 const handleSessionClick = () => {
@@ -195,3 +179,22 @@ const handleSessionMenuClick = (event: MouseEvent) => {
   );
 };
 </script>
+
+<style scoped>
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+}
+
+.status-done {
+  background: #22c55e;
+}
+
+.status-failed {
+  background: #ef4444;
+}
+</style>

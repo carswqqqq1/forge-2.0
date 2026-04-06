@@ -15,6 +15,8 @@ export interface CreateSessionResponse {
     mode: string;
     permissions: string;
     risk_level: string;
+    model_tier: string;
+    wide_research: boolean;
 }
 
 export interface GetSessionResponse {
@@ -30,6 +32,8 @@ export interface GetSessionResponse {
     mode: string;
     permissions: string;
     risk_level: string;
+    model_tier: string;
+    wide_research: boolean;
 }
 
 export interface ListSessionItem {
@@ -46,6 +50,8 @@ export interface ListSessionItem {
     mode: string;
     permissions: string;
     risk_level: string;
+    model_tier: string;
+    wide_research: boolean;
 }
 
 export interface ListSessionResponse {
@@ -85,5 +91,9 @@ export interface SharedSessionResponse {
     status: SessionStatus;
     events: AgentSSEEvent[];
     is_shared: boolean;
+}
+
+export interface SessionFollowupsResponse {
+    suggestions: string[];
 }
   

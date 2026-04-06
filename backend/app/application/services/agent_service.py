@@ -57,11 +57,12 @@ class AgentService:
     async def create_session(
         self,
         user_id: str,
-        model_tier: str = "regular",
+        model_tier: str = "lite",
         prompt: str = "",
         max_budget: int = 0,
         mode: str = "auto",
         permissions: str = "standard",
+        wide_research: bool = False,
     ) -> Session:
         logger.info(f"Creating new session for user: {user_id}")
         user = await self._user_repository.get_user_by_id(user_id)
@@ -69,7 +70,8 @@ class AgentService:
             raise BadRequestError("User not found")
         if (user.credits or 0) <= 0:
             raise BadRequestError("You are out of credits. Please top up to continue.")
-        estimated_cost = self._estimate_cost(model_tier, prompt)
+        prepared_prompt = self._prepare_prompt(prompt, wide_research)
+        estimated_cost = self._estimate_cost(model_tier, prepared_prompt, wide_research)
         resolved_budget = max_budget if (max_budget or 0) > 0 else max(estimated_cost * 2, estimated_cost)
         if resolved_budget > 0 and estimated_cost > resolved_budget:
             raise BadRequestError(f"This run is estimated at {estimated_cost} credits, which exceeds your budget cap of {resolved_budget}.")
@@ -77,28 +79,28 @@ class AgentService:
             raise BadRequestError(f"You need {estimated_cost} credits for this run but only have {user.credits or 0} left.")
         await self._charge_credits(user_id, estimated_cost)
         agent = await self._create_agent(model_tier=model_tier)
-        memory_brief = await self._build_memory_brief(user_id)
+        memory_brief = await self._build_memory_brief(user_id, prepared_prompt, wide_research)
         session = Session(
             agent_id=agent.id,
             user_id=user_id,
             memory_brief=memory_brief,
-            goal=prompt.strip() or None,
+            goal=prepared_prompt.strip() or None,
             estimated_cost=estimated_cost,
             spent_credits=estimated_cost,
             max_budget=resolved_budget,
             mode=(mode or "auto").lower(),
             permissions=(permissions or "standard").lower(),
             risk_level=self._estimate_risk_level(prompt),
+            model_tier=(model_tier or "lite").lower(),
+            wide_research=wide_research,
         )
         logger.info(f"Created new Session with ID: {session.id} for user: {user_id}")
         await self._session_repository.save(session)
         return session
 
-    async def _build_memory_brief(self, user_id: str) -> Optional[str]:
+    async def _build_memory_brief(self, user_id: str, prompt: str = "", wide_research: bool = False) -> Optional[str]:
         summaries = await self._session_repository.find_summaries_by_user_id(user_id)
         recent = [s for s in summaries if s.latest_message][:5]
-        if not recent:
-            return None
         lines = ["Use this as persistent cross-chat memory for Forge:"]
         for session in recent:
             title = session.title or "Untitled task"
@@ -106,13 +108,31 @@ class AgentService:
             if len(message) > 180:
                 message = message[:177] + "..."
             lines.append(f"- {title}: {message}")
+        if wide_research:
+            lines.append("Wide research mode is enabled. Break the task into 5-8 subtopics, search each one, cross-check claims, and produce a structured report with citations and a summary.")
+        if prompt.strip():
+            lines.append(f"Current task goal: {prompt.strip()}")
+        if len(lines) == 1:
+            return None
         return "\n".join(lines)
 
-    def _estimate_cost(self, model_tier: str, message: str) -> int:
-        tier = (model_tier or "regular").lower()
-        base_cost = 6 if tier == "max" else 2
+    def _prepare_prompt(self, prompt: str, wide_research: bool) -> str:
+        clean_prompt = (prompt or "").strip()
+        if not wide_research:
+            return clean_prompt
+        return (
+            "Use Wide Research mode for this task. Break the topic into 5-8 subtopics, research each subtopic separately, "
+            "cross-reference findings, and produce a comprehensive report with citations, key takeaways, and next steps.\n\n"
+            f"Research topic: {clean_prompt}"
+        ).strip()
+
+    def _estimate_cost(self, model_tier: str, message: str, wide_research: bool = False) -> int:
+        tier = (model_tier or "lite").lower()
+        base_cost_map = {"lite": 1, "regular": 2, "max": 6}
+        base_cost = base_cost_map.get(tier, 2)
         task_cost = min(18, max(0, len((message or "").strip()) // 250))
-        return base_cost + task_cost
+        research_cost = 4 if wide_research else 0
+        return base_cost + task_cost + research_cost
 
     def _estimate_risk_level(self, prompt: str) -> str:
         text = (prompt or "").lower()
@@ -127,18 +147,22 @@ class AgentService:
     async def _charge_credits(self, user_id: str, estimated_cost: int) -> None:
         await self._user_repository.add_credits(user_id, -estimated_cost)
 
-    async def _create_agent(self, model_tier: str = "regular") -> Agent:
+    async def _create_agent(self, model_tier: str = "lite") -> Agent:
         logger.info("Creating new agent")
         settings = get_settings()
-        tier = (model_tier or settings.model_tier or "regular").lower()
+        tier = (model_tier or settings.model_tier or "lite").lower()
         if tier == "max":
             model_name = settings.model_name_max
             temperature = settings.temperature_max
             max_tokens = settings.max_tokens_max
-        else:
+        elif tier == "regular":
             model_name = settings.model_name_regular
             temperature = settings.temperature
             max_tokens = settings.max_tokens
+        else:
+            model_name = settings.model_name_lite
+            temperature = settings.temperature_lite
+            max_tokens = settings.max_tokens_lite
         agent = Agent(
             model_name=model_name,
             temperature=temperature,
@@ -222,6 +246,25 @@ class AgentService:
         logger.info(f"Clearing unread message count for session {session_id} for user {user_id}")
         await self._session_repository.update_unread_message_count(session_id, 0)
         logger.info(f"Unread message count cleared for session {session_id}")
+
+    async def get_session_followups(self, session_id: str, user_id: str) -> List[str]:
+        session = await self._session_repository.find_by_id_and_user_id(session_id, user_id)
+        if not session:
+            raise RuntimeError("Session not found")
+        base = session.title or session.goal or "this task"
+        if session.wide_research:
+            return [
+                f"Summarize the strongest findings from {base}",
+                f"Turn {base} into a comparison spreadsheet",
+                f"Create slides from {base}",
+                f"Give me the next recommended actions based on {base}",
+            ]
+        return [
+            f"Summarize {base} for me",
+            f"Turn {base} into a spreadsheet",
+            f"Create slides from {base}",
+            f"Help me improve the result for {base}",
+        ]
 
     async def update_session_title(self, session_id: str, user_id: str, title: str) -> None:
         """Rename a session, ensuring it belongs to the user"""

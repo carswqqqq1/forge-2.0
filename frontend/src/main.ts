@@ -16,6 +16,9 @@ import LoginPage from './pages/LoginPage.vue'
 import MainLayout from './pages/MainLayout.vue'
 import SharePage from './pages/SharePage.vue'
 import ShareLayout from './pages/ShareLayout.vue'
+import AgentsPage from './pages/AgentsPage.vue'
+import LibraryPage from './pages/LibraryPage.vue'
+import IntegrationsPage from './pages/IntegrationsPage.vue'
 
 // Create router
 export const router = createRouter({
@@ -35,6 +38,42 @@ export const router = createRouter({
         { 
           path: ':sessionId', 
           component: ChatPage,
+          meta: { requiresAuth: true }
+        }
+      ]
+    },
+    {
+      path: '/agents',
+      component: MainLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          component: AgentsPage,
+          meta: { requiresAuth: true }
+        }
+      ]
+    },
+    {
+      path: '/library',
+      component: MainLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          component: LibraryPage,
+          meta: { requiresAuth: true }
+        }
+      ]
+    },
+    {
+      path: '/integrations',
+      component: MainLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          component: IntegrationsPage,
           meta: { requiresAuth: true }
         }
       ]

@@ -28,14 +28,18 @@ class Settings(BaseSettings):
     api_base: str | None = None
     
     # Model configuration
-    model_tier: str = "regular"  # "regular" or "max"
-    model_name: str = "openai/gpt-oss-20b"
+    model_tier: str = "lite"  # "lite", "regular" or "max"
+    model_name: str = "meta/llama-3.1-8b-instruct"
+    model_name_lite: str = "meta/llama-3.1-8b-instruct"
     model_name_regular: str = "openai/gpt-oss-20b"
     model_name_max: str = "openai/gpt-oss-120b"
     model_provider: str = "openai"
+    memory_model_name_lite: str = "meta/llama-3.1-8b-instruct"
     memory_model_name_regular: str = "openai/gpt-oss-20b"
     memory_model_name_max: str = "openai/gpt-oss-120b"
-    memory_model_name: str = "openai/gpt-oss-20b"
+    memory_model_name: str = "meta/llama-3.1-8b-instruct"
+    temperature_lite: float = 0.7
+    max_tokens_lite: int = 1600
     temperature: float = 0.7
     max_tokens: int = 2000
     temperature_max: float = 0.3
@@ -146,9 +150,14 @@ def get_settings() -> Settings:
         settings.temperature = settings.temperature_max
         settings.max_tokens = settings.max_tokens_max
         settings.memory_model_name = settings.memory_model_name_max
-    else:
+    elif tier == "regular":
         settings.model_name = settings.model_name_regular
         settings.memory_model_name = settings.memory_model_name_regular
+    else:
+        settings.model_name = settings.model_name_lite
+        settings.temperature = settings.temperature_lite
+        settings.max_tokens = settings.max_tokens_lite
+        settings.memory_model_name = settings.memory_model_name_lite
     settings.extra_headers = _parse_extra_headers()
     settings.validate()
     return settings 

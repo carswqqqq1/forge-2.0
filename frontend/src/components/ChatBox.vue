@@ -13,14 +13,14 @@
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
             @keydown.enter.exact="handleEnterKeydown"
-            :placeholder="props.disabled ? 'Out of credits' : 'Assign a task or...'"
+            :placeholder="props.disabled ? 'Out of credits' : (props.placeholder || 'Assign a task to Forge...')"
             :disabled="props.disabled"></textarea>
         </div>
 
         <footer class="flex flex-row justify-between items-center w-full px-3">
           <div class="flex gap-1 pr-2 items-center">
             <button class="toolbar-button" :disabled="props.disabled" @click="uploadFile"><Plus :size="16" /></button>
-            <button class="toolbar-button" :disabled="props.disabled" @click="showInfoToast('GitHub integration picker coming soon')"><Github :size="16" /></button>
+            <button class="toolbar-button" :disabled="props.disabled" @click="openConnectModal('GitHub')"><Github :size="16" /></button>
             <button class="toolbar-button" :disabled="props.disabled" @click="showInfoToast('Browser tools are available')"><Globe :size="16" /></button>
             <button class="toolbar-button" :disabled="props.disabled" @click="showInfoToast('Computer controls are available in active runs')"><Monitor :size="16" /></button>
           </div>
@@ -58,10 +58,9 @@
         <div class="flex items-center gap-2 min-w-0">
           <span class="text-[12px] text-[var(--text-secondary)] whitespace-nowrap">Connect your tools to Forge</span>
           <div class="flex items-center gap-1 overflow-hidden">
-            <span class="connect-icon"><Mail :size="13" /></span>
-            <span class="connect-icon"><CalendarDays :size="13" /></span>
-            <span class="connect-icon"><Github :size="13" /></span>
-            <span class="connect-icon"><Globe :size="13" /></span>
+            <button v-for="integration in integrations" :key="integration" class="connect-logo-btn" @click="openConnectModal(integration)">
+              <IntegrationLogo :name="integration" />
+            </button>
           </div>
         </div>
         <button class="flex h-6 w-6 items-center justify-center rounded-full hover:bg-[var(--fill-tsp-white-light)]" @click="dismissConnectBar">
@@ -76,14 +75,17 @@
 import { ref, watch, computed } from 'vue';
 import SendIcon from './icons/SendIcon.vue';
 import ChatBoxFiles from './ChatBoxFiles.vue';
-import { Plus, Github, Globe, Monitor, Smile, Mic, Terminal, FileText, Search, Mail, CalendarDays, X } from 'lucide-vue-next';
+import { Plus, Github, Globe, Monitor, Smile, Mic, Terminal, FileText, Search, X } from 'lucide-vue-next';
 import type { FileInfo } from '../api/file';
 import { showInfoToast } from '../utils/toast';
+import { useConnectModal, type IntegrationName } from '../composables/useConnectModal';
+import IntegrationLogo from './IntegrationLogo.vue';
 
 const hasTextInput = ref(false);
 const isComposing = ref(false);
 const chatBoxFileListRef = ref();
 const connectBarDismissed = ref(localStorage.getItem('forge-connect-bar-dismissed') === 'true');
+const { openConnectModal } = useConnectModal();
 const connectedTools = ref<Record<string, boolean>>({
     Browser: false,
     Terminal: false,
@@ -97,6 +99,7 @@ const tools = [
     { name: 'File', icon: FileText },
     { name: 'Search', icon: Search },
 ];
+const integrations: IntegrationName[] = ['Notion', 'Gmail', 'Google Calendar', 'GitHub', 'Slack', 'Database', 'Browser'];
 
 const props = defineProps<{
     modelValue: string;
@@ -106,6 +109,7 @@ const props = defineProps<{
     disabled?: boolean;
     hideStopButton?: boolean;
     allowSendFilesOnly?: boolean;
+    placeholder?: string;
 }>();
 
 const sendEnabled = computed(() => {
@@ -190,14 +194,19 @@ watch(() => props.modelValue, (value) => {
     color: var(--text-secondary);
 }
 
-.connect-icon {
-    width: 24px;
-    height: 24px;
+.connect-logo-btn {
+    width: 28px;
+    height: 28px;
     border-radius: 9999px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: var(--fill-tsp-white-light);
-    color: var(--text-secondary);
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.connect-logo-btn:hover {
+    background: var(--background-gray-main);
+    transform: translateY(-1px);
 }
 </style>

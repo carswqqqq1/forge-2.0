@@ -33,6 +33,8 @@ class SessionSummary(BaseModel):
     mode: str = "auto"
     permissions: str = "standard"
     risk_level: str = "low"
+    model_tier: str = "lite"
+    wide_research: bool = False
 
 
 class Session(BaseModel):
@@ -60,6 +62,8 @@ class Session(BaseModel):
     mode: str = "auto"
     permissions: str = "standard"
     risk_level: str = "low"
+    model_tier: str = "lite"
+    wide_research: bool = False
 
     def get_last_plan(self) -> Optional[Plan]:
         """Get the last plan from the events"""
