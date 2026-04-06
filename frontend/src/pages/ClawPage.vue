@@ -19,7 +19,7 @@
           <div class="text-[var(--text-primary)] text-lg font-medium w-full flex flex-row items-center justify-between flex-1 min-w-0 gap-2">
             <div class="flex flex-row items-center gap-[6px] flex-1 min-w-0">
               <div class="claw-icon-nav w-6 h-6 flex-shrink-0" />
-              <span class="whitespace-nowrap text-ellipsis overflow-hidden">Manus Claw</span>
+              <span class="whitespace-nowrap text-ellipsis overflow-hidden">Forge 2.0 Claw</span>
               <span
                 v-if="formattedCountdown != null"
                 class="ml-1 text-sm font-mono px-1.5 py-0.5 rounded bg-[var(--fill-tsp-white-main)] text-[var(--text-tertiary)] whitespace-nowrap"
@@ -45,7 +45,7 @@
         <div v-if="!hasClaw && !isLoadingClaw" class="flex flex-col flex-1 min-h-0 overflow-y-auto">
           <div class="flex flex-col items-center justify-center flex-1 px-4 py-12 w-full">
             <div class="w-full rounded-2xl overflow-hidden bg-[#ECECEB] dark:bg-[#231a33] aspect-video mb-8 flex flex-col items-center justify-center gap-4 px-4">
-              <h1 class="text-2xl sm:text-3xl font-bold tracking-tight"><span class="text-[#c0392b]">OpenClaw</span> <span class="text-[var(--text-tertiary)]">×</span> <span class="text-[#3b82f6]">Manus</span></h1>
+              <h1 class="text-2xl sm:text-3xl font-bold tracking-tight"><span class="text-[#c0392b]">OpenClaw</span> <span class="text-[var(--text-tertiary)]">×</span> <span class="text-[#3b82f6]">Forge 2.0</span></h1>
               <img :src="openclawColorImage" alt="OpenClaw" class="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-lg" />
             </div>
 

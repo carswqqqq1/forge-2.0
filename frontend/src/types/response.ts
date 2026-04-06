@@ -9,6 +9,12 @@ export enum SessionStatus {
 
 export interface CreateSessionResponse {
     session_id: string;
+    estimated_cost: number;
+    spent_credits: number;
+    max_budget: number;
+    mode: string;
+    permissions: string;
+    risk_level: string;
 }
 
 export interface GetSessionResponse {
@@ -17,6 +23,13 @@ export interface GetSessionResponse {
     status: SessionStatus;
     events: AgentSSEEvent[];
     is_shared: boolean;
+    goal: string | null;
+    estimated_cost: number;
+    spent_credits: number;
+    max_budget: number;
+    mode: string;
+    permissions: string;
+    risk_level: string;
 }
 
 export interface ListSessionItem {
@@ -27,6 +40,12 @@ export interface ListSessionItem {
     status: SessionStatus;
     unread_message_count: number;
     is_shared: boolean;
+    estimated_cost: number;
+    spent_credits: number;
+    max_budget: number;
+    mode: string;
+    permissions: string;
+    risk_level: string;
 }
 
 export interface ListSessionResponse {

@@ -256,11 +256,33 @@ class BrowserUseBrowser:
         except Exception as exc:
             return ToolResult(success=False, message=f"Failed to view page: {exc}")
 
-    async def navigate(self, url: str) -> ToolResult:
-        """Navigate to the given URL."""
+    async def navigate(self, url: str, timeout: Optional[int] = None) -> ToolResult:
+        """Navigate to the given URL.
+
+        Args:
+            url: URL to navigate to
+            timeout: Navigation timeout in milliseconds, default 20000 (20 seconds)
+        """
         try:
             session = await self._ensure_session()
-            await session.navigate_to(url)
+
+            # Set default timeout to 20 seconds if not provided
+            if timeout is None:
+                timeout = 20000
+
+            try:
+                await asyncio.wait_for(
+                    session.navigate_to(url),
+                    timeout=timeout / 1000.0  # Convert milliseconds to seconds
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Navigation timeout for %s: page took longer than %.1fs to load", url, timeout / 1000.0)
+                # Don't fail, allow the agent to continue with partial page load
+            except Exception as e:
+                logger.warning("Browser navigation failed for %s: %s", url, e)
+                # For non-timeout errors, still try to get page state
+                pass
+
             # navigate_to() completes before the DOM watchdog has serialised the new page,
             # so _cached_selector_map is empty at this point.  Calling
             # get_browser_state_summary() triggers DOM serialisation and populates the
@@ -275,7 +297,12 @@ class BrowserUseBrowser:
                 data={"interactive_elements": interactive_elements},
             )
         except Exception as exc:
-            return ToolResult(success=False, message=f"Failed to navigate to {url}: {exc}")
+            logger.error("Browser navigation failed for %s: %s", url, exc)
+            return ToolResult(
+                success=False,
+                message=f"Navigation failed for {url}: {exc}",
+                data={"interactive_elements": []},
+            )
 
     async def restart(self, url: str) -> ToolResult:
         """Restart the browser session and navigate to the given URL."""

@@ -42,6 +42,7 @@ export function useAuth() {
         email: 'anonymous@localhost',
         role: 'user',
         is_active: true,
+        credits: 200,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }

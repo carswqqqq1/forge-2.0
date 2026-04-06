@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from app.domain.models.session import Session, SessionSummary
 from app.domain.repositories.session_repository import SessionRepository
+from app.domain.repositories.user_repository import UserRepository
 
 from app.interfaces.schemas.session import ShellViewResponse
 from app.interfaces.schemas.file import FileViewResponse
@@ -10,7 +11,6 @@ from app.domain.models.agent import Agent
 from app.domain.services.agent_domain_service import AgentDomainService
 from app.domain.models.event import AgentEvent
 from typing import Type
-from app.domain.models.agent import Agent
 from app.domain.external.sandbox import Sandbox
 from app.domain.external.search import SearchEngine
 from app.domain.external.file import FileStorage
@@ -20,6 +20,7 @@ from app.domain.models.file import FileInfo
 from app.core.config import get_settings
 from app.domain.repositories.mcp_repository import MCPRepository
 from app.domain.models.session import SessionStatus
+from app.application.errors.exceptions import BadRequestError
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ class AgentService:
         self,
         agent_repository: AgentRepository,
         session_repository: SessionRepository,
+        user_repository: UserRepository,
         sandbox_cls: Type[Sandbox],
         task_cls: Type[Task],
         file_storage: FileStorage,
@@ -38,6 +40,7 @@ class AgentService:
         logger.info("Initializing AgentService")
         self._agent_repository = agent_repository
         self._session_repository = session_repository
+        self._user_repository = user_repository
         self._file_storage = file_storage
         self._agent_domain_service = AgentDomainService(
             self._agent_repository,
@@ -51,21 +54,95 @@ class AgentService:
         self._search_engine = search_engine
         self._sandbox_cls = sandbox_cls
     
-    async def create_session(self, user_id: str) -> Session:
+    async def create_session(
+        self,
+        user_id: str,
+        model_tier: str = "regular",
+        prompt: str = "",
+        max_budget: int = 0,
+        mode: str = "auto",
+        permissions: str = "standard",
+    ) -> Session:
         logger.info(f"Creating new session for user: {user_id}")
-        agent = await self._create_agent()
-        session = Session(agent_id=agent.id, user_id=user_id)
+        user = await self._user_repository.get_user_by_id(user_id)
+        if not user:
+            raise BadRequestError("User not found")
+        if (user.credits or 0) <= 0:
+            raise BadRequestError("You are out of credits. Please top up to continue.")
+        estimated_cost = self._estimate_cost(model_tier, prompt)
+        resolved_budget = max_budget if (max_budget or 0) > 0 else max(estimated_cost * 2, estimated_cost)
+        if resolved_budget > 0 and estimated_cost > resolved_budget:
+            raise BadRequestError(f"This run is estimated at {estimated_cost} credits, which exceeds your budget cap of {resolved_budget}.")
+        if (user.credits or 0) < estimated_cost:
+            raise BadRequestError(f"You need {estimated_cost} credits for this run but only have {user.credits or 0} left.")
+        await self._charge_credits(user_id, estimated_cost)
+        agent = await self._create_agent(model_tier=model_tier)
+        memory_brief = await self._build_memory_brief(user_id)
+        session = Session(
+            agent_id=agent.id,
+            user_id=user_id,
+            memory_brief=memory_brief,
+            goal=prompt.strip() or None,
+            estimated_cost=estimated_cost,
+            spent_credits=estimated_cost,
+            max_budget=resolved_budget,
+            mode=(mode or "auto").lower(),
+            permissions=(permissions or "standard").lower(),
+            risk_level=self._estimate_risk_level(prompt),
+        )
         logger.info(f"Created new Session with ID: {session.id} for user: {user_id}")
         await self._session_repository.save(session)
         return session
 
-    async def _create_agent(self) -> Agent:
+    async def _build_memory_brief(self, user_id: str) -> Optional[str]:
+        summaries = await self._session_repository.find_summaries_by_user_id(user_id)
+        recent = [s for s in summaries if s.latest_message][:5]
+        if not recent:
+            return None
+        lines = ["Use this as persistent cross-chat memory for Forge:"]
+        for session in recent:
+            title = session.title or "Untitled task"
+            message = (session.latest_message or "").strip()
+            if len(message) > 180:
+                message = message[:177] + "..."
+            lines.append(f"- {title}: {message}")
+        return "\n".join(lines)
+
+    def _estimate_cost(self, model_tier: str, message: str) -> int:
+        tier = (model_tier or "regular").lower()
+        base_cost = 6 if tier == "max" else 2
+        task_cost = min(18, max(0, len((message or "").strip()) // 250))
+        return base_cost + task_cost
+
+    def _estimate_risk_level(self, prompt: str) -> str:
+        text = (prompt or "").lower()
+        high_risk_terms = ("deploy", "production", "billing", "payment", "delete", "domain", "dns", "stripe", "netlify", "oauth")
+        medium_risk_terms = ("login", "auth", "search", "research", "code", "file", "browser")
+        if any(term in text for term in high_risk_terms):
+            return "high"
+        if any(term in text for term in medium_risk_terms):
+            return "medium"
+        return "low"
+
+    async def _charge_credits(self, user_id: str, estimated_cost: int) -> None:
+        await self._user_repository.add_credits(user_id, -estimated_cost)
+
+    async def _create_agent(self, model_tier: str = "regular") -> Agent:
         logger.info("Creating new agent")
         settings = get_settings()
+        tier = (model_tier or settings.model_tier or "regular").lower()
+        if tier == "max":
+            model_name = settings.model_name_max
+            temperature = settings.temperature_max
+            max_tokens = settings.max_tokens_max
+        else:
+            model_name = settings.model_name_regular
+            temperature = settings.temperature
+            max_tokens = settings.max_tokens
         agent = Agent(
-            model_name=settings.model_name,
-            temperature=settings.temperature,
-            max_tokens=settings.max_tokens,
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
         logger.info(f"Created new Agent with ID: {agent.id}")
         
@@ -85,7 +162,8 @@ class AgentService:
         event_id: Optional[str] = None,
         attachments: Optional[List[dict]] = None
     ) -> AsyncGenerator[AgentEvent, None]:
-        logger.info(f"Starting chat with session {session_id}: {message[:50]}...")
+        message_preview = (message or "")[:50] if message else ""
+        logger.info(f"Starting chat with session {session_id}: {message_preview}...")
         # Directly use the domain service's chat method, which will check if the session exists
         async for event in self._agent_domain_service.chat(session_id, user_id, message, timestamp, event_id, attachments):
             logger.debug(f"Received event: {event}")
@@ -116,6 +194,10 @@ class AgentService:
         if not session:
             logger.error(f"Session {session_id} not found for user {user_id}")
             raise RuntimeError("Session not found")
+        if session.sandbox_id:
+            sandbox = await self._sandbox_cls.get(session.sandbox_id)
+            if sandbox:
+                await sandbox.destroy()
         
         await self._session_repository.delete(session_id)
         logger.info(f"Session {session_id} deleted successfully")
@@ -129,6 +211,10 @@ class AgentService:
             logger.error(f"Session {session_id} not found for user {user_id}")
             raise RuntimeError("Session not found")
         await self._agent_domain_service.stop_session(session_id)
+        if session.sandbox_id:
+            sandbox = await self._sandbox_cls.get(session.sandbox_id)
+            if sandbox:
+                await sandbox.destroy()
         logger.info(f"Session {session_id} stopped successfully")
 
     async def clear_unread_message_count(self, session_id: str, user_id: str) -> None:
@@ -136,6 +222,15 @@ class AgentService:
         logger.info(f"Clearing unread message count for session {session_id} for user {user_id}")
         await self._session_repository.update_unread_message_count(session_id, 0)
         logger.info(f"Unread message count cleared for session {session_id}")
+
+    async def update_session_title(self, session_id: str, user_id: str, title: str) -> None:
+        """Rename a session, ensuring it belongs to the user"""
+        session = await self._session_repository.find_by_id_and_user_id(session_id, user_id)
+        if not session:
+            logger.error(f"Session {session_id} not found for user {user_id}")
+            raise RuntimeError("Session not found")
+        await self._session_repository.update_title(session_id, title.strip())
+        logger.info(f"Session {session_id} renamed successfully")
 
     async def shutdown(self):
         logger.info("Closing all agents and cleaning up resources")

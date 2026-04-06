@@ -18,6 +18,12 @@
                                 currentUser?.email || t('No email') }}</span>
                     </div>
                 </div>
+                <div class="px-4 pb-2">
+                    <div class="flex items-center justify-between rounded-2xl border border-[var(--border-main)] bg-[var(--fill-tsp-white-light)] px-3 py-2">
+                        <span class="text-sm font-medium text-[var(--text-secondary)]">Credits</span>
+                        <span class="text-sm font-semibold text-[var(--text-primary)]">{{ currentUser?.credits ?? '...' }}</span>
+                    </div>
+                </div>
                 <div class="flex flex-col gap-3 px-3 pb-3">
                     <div class="flex flex-col gap-1">
                         <div class="w-full h-[1px] my-1 bg-[var(--border-main)]"></div>

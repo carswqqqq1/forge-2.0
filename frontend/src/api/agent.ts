@@ -10,8 +10,19 @@ import type { FileInfo } from './file';
  * Create Session
  * @returns Session
  */
-export async function createSession(): Promise<CreateSessionResponse> {
-  const response = await apiClient.put<ApiResponse<CreateSessionResponse>>('/sessions');
+export async function createSession(
+  modelTier: 'regular' | 'max' = 'regular',
+  prompt: string = '',
+  options: { maxBudget?: number; mode?: 'auto' | 'checkpoint'; permissions?: 'standard' | 'guarded' } = {}
+): Promise<CreateSessionResponse> {
+  const params = new URLSearchParams({
+    model_tier: modelTier,
+    prompt,
+    max_budget: String(options.maxBudget ?? 12),
+    mode: options.mode ?? 'auto',
+    permissions: options.permissions ?? 'standard',
+  });
+  const response = await apiClient.put<ApiResponse<CreateSessionResponse>>(`/sessions?${params.toString()}`);
   return response.data.data;
 }
 
@@ -37,6 +48,10 @@ export async function getSessionsSSE(callbacks?: SSECallbacks<ListSessionRespons
 
 export async function deleteSession(sessionId: string): Promise<void> {
   await apiClient.delete<ApiResponse<void>>(`/sessions/${sessionId}`);
+}
+
+export async function renameSession(sessionId: string, title: string): Promise<void> {
+  await apiClient.patch<ApiResponse<void>>(`/sessions/${sessionId}`, { title });
 }
 
 export async function stopSession(sessionId: string): Promise<void> {

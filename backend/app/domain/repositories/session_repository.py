@@ -70,6 +70,10 @@ class SessionRepository(Protocol):
     async def update_shared_status(self, session_id: str, is_shared: bool) -> None:
         """Update the shared status of a session"""
         ...
+
+    async def update_memory_brief(self, session_id: str, memory_brief: Optional[str]) -> None:
+        """Update the persistent memory brief of a session"""
+        ...
     
     async def delete(self, session_id: str) -> None:
         """Delete a session"""

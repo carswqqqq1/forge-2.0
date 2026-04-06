@@ -59,6 +59,7 @@ def get_agent_service() -> AgentService:
     return AgentService(
         agent_repository=agent_repository,
         session_repository=session_repository,
+        user_repository=MongoUserRepository(),
         sandbox_cls=sandbox_cls,
         task_cls=task_cls,
         file_storage=file_storage,
@@ -166,7 +167,8 @@ async def get_current_user(
             fullname="anonymous",
             email="anonymous@localhost",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
+            credits=200
         )
     
     # Check if bearer token is provided
@@ -211,7 +213,8 @@ async def get_optional_current_user(
             fullname="anonymous",
             email="anonymous@localhost",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
+            credits=200
         )
     
     # If no bearer token provided, return None

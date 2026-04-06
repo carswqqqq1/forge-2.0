@@ -12,6 +12,11 @@ class ChatRequest(BaseModel):
     event_id: Optional[str] = None
 
 
+class UpdateSessionRequest(BaseModel):
+    """Update session request schema"""
+    title: Optional[str] = None
+
+
 class ShellViewRequest(BaseModel):
     """Shell view request schema"""
     session_id: str
@@ -20,6 +25,12 @@ class ShellViewRequest(BaseModel):
 class CreateSessionResponse(BaseModel):
     """Create session response schema"""
     session_id: str
+    estimated_cost: int = 0
+    spent_credits: int = 0
+    max_budget: int = 0
+    mode: str = "auto"
+    permissions: str = "standard"
+    risk_level: str = "low"
 
 
 class GetSessionResponse(BaseModel):
@@ -29,6 +40,13 @@ class GetSessionResponse(BaseModel):
     status: SessionStatus
     events: List[AgentSSEEvent] = []
     is_shared: bool = False
+    goal: Optional[str] = None
+    estimated_cost: int = 0
+    spent_credits: int = 0
+    max_budget: int = 0
+    mode: str = "auto"
+    permissions: str = "standard"
+    risk_level: str = "low"
 
 
 class ListSessionItem(BaseModel):
@@ -40,6 +58,12 @@ class ListSessionItem(BaseModel):
     status: SessionStatus
     unread_message_count: int
     is_shared: bool = False
+    estimated_cost: int = 0
+    spent_credits: int = 0
+    max_budget: int = 0
+    mode: str = "auto"
+    permissions: str = "standard"
+    risk_level: str = "low"
 
 
 class ListSessionResponse(BaseModel):

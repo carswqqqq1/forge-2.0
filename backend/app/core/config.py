@@ -28,10 +28,18 @@ class Settings(BaseSettings):
     api_base: str | None = None
     
     # Model configuration
-    model_name: str = "gpt-4o"
+    model_tier: str = "regular"  # "regular" or "max"
+    model_name: str = "openai/gpt-oss-20b"
+    model_name_regular: str = "openai/gpt-oss-20b"
+    model_name_max: str = "openai/gpt-oss-120b"
     model_provider: str = "openai"
+    memory_model_name_regular: str = "openai/gpt-oss-20b"
+    memory_model_name_max: str = "openai/gpt-oss-120b"
+    memory_model_name: str = "openai/gpt-oss-20b"
     temperature: float = 0.7
     max_tokens: int = 2000
+    temperature_max: float = 0.3
+    max_tokens_max: int = 4000
     
     # MongoDB configuration
     mongodb_uri: str = "mongodb://mongodb:27017"
@@ -72,8 +80,8 @@ class Settings(BaseSettings):
 
     # Auth configuration
     auth_provider: str = "password"  # "password", "none", "local"
-    show_github_button: bool = True
-    github_repository_url: str = "https://github.com/simpleyyt/ai-manus"
+    show_github_button: bool = False
+    github_repository_url: str = ""
     password_salt: str | None = None
     password_hash_rounds: int = 10
     password_hash_algorithm: str = "pbkdf2_sha256"
@@ -97,7 +105,7 @@ class Settings(BaseSettings):
     extra_headers: dict | None = None
     
     # Claw (OpenClaw) configuration
-    claw_enabled: bool = True
+    claw_enabled: bool = False
     claw_image: str = "simpleyyt/manus-claw"
     claw_name_prefix: str = "manus-claw"
     claw_ttl_seconds: int = 3600
@@ -126,8 +134,21 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get application settings"""
     if not os.environ.get("OPENAI_API_KEY"):
-        os.environ["OPENAI_API_KEY"] = os.getenv("API_KEY")
+        api_key = os.getenv("API_KEY")
+        if api_key:
+            os.environ["OPENAI_API_KEY"] = api_key
+    if not os.environ.get("OPENAI_BASE_URL") and os.getenv("API_BASE"):
+        os.environ["OPENAI_BASE_URL"] = os.getenv("API_BASE")
     settings = Settings()
+    tier = (settings.model_tier or "regular").lower()
+    if tier == "max":
+        settings.model_name = settings.model_name_max
+        settings.temperature = settings.temperature_max
+        settings.max_tokens = settings.max_tokens_max
+        settings.memory_model_name = settings.memory_model_name_max
+    else:
+        settings.model_name = settings.model_name_regular
+        settings.memory_model_name = settings.memory_model_name_regular
     settings.extra_headers = _parse_extra_headers()
     settings.validate()
     return settings 

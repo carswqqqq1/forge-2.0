@@ -49,4 +49,9 @@ class UserRepository(ABC):
     @abstractmethod
     async def email_exists(self, email: str) -> bool:
         """Check if email exists"""
-        pass 
+        pass
+
+    @abstractmethod
+    async def add_credits(self, user_id: str, credits: int) -> User:
+        """Add or subtract credits for a user"""
+        pass

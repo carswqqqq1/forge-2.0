@@ -16,7 +16,7 @@ from app.interfaces.schemas.base import APIResponse
 from app.interfaces.schemas.session import (
     ChatRequest, ShellViewRequest, CreateSessionResponse, GetSessionResponse,
     ListSessionItem, ListSessionResponse, ShellViewResponse,
-    ShareSessionResponse, SharedSessionResponse
+    ShareSessionResponse, SharedSessionResponse, UpdateSessionRequest
 )
 from app.interfaces.schemas.file import FileViewRequest, FileViewResponse
 from app.interfaces.schemas.resource import AccessTokenRequest, SignedUrlResponse
@@ -32,12 +32,30 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 @router.put("", response_model=APIResponse[CreateSessionResponse])
 async def create_session(
     current_user: User = Depends(get_current_user),
-    agent_service: AgentService = Depends(get_agent_service)
+    agent_service: AgentService = Depends(get_agent_service),
+    model_tier: str = Query(default="regular"),
+    prompt: str = Query(default=""),
+    max_budget: int = Query(default=0),
+    mode: str = Query(default="auto"),
+    permissions: str = Query(default="standard"),
 ) -> APIResponse[CreateSessionResponse]:
-    session = await agent_service.create_session(current_user.id)
+    session = await agent_service.create_session(
+        current_user.id,
+        model_tier=model_tier,
+        prompt=prompt,
+        max_budget=max_budget,
+        mode=mode,
+        permissions=permissions,
+    )
     return APIResponse.success(
         CreateSessionResponse(
             session_id=session.id,
+            estimated_cost=session.estimated_cost,
+            spent_credits=session.spent_credits,
+            max_budget=session.max_budget,
+            mode=session.mode,
+            permissions=session.permissions,
+            risk_level=session.risk_level,
         )
     )
 
@@ -55,7 +73,14 @@ async def get_session(
         title=session.title,
         status=session.status,
         events=await EventMapper.events_to_sse_events(session.events),
-        is_shared=session.is_shared
+        is_shared=session.is_shared,
+        goal=session.goal,
+        estimated_cost=session.estimated_cost,
+        spent_credits=session.spent_credits,
+        max_budget=session.max_budget,
+        mode=session.mode,
+        permissions=session.permissions,
+        risk_level=session.risk_level,
     ))
 
 @router.delete("/{session_id}", response_model=APIResponse[None])
@@ -65,6 +90,17 @@ async def delete_session(
     agent_service: AgentService = Depends(get_agent_service)
 ) -> APIResponse[None]:
     await agent_service.delete_session(session_id, current_user.id)
+    return APIResponse.success()
+
+@router.patch("/{session_id}", response_model=APIResponse[None])
+async def update_session(
+    session_id: str,
+    request: UpdateSessionRequest,
+    current_user: User = Depends(get_current_user),
+    agent_service: AgentService = Depends(get_agent_service)
+) -> APIResponse[None]:
+    if request.title is not None:
+        await agent_service.update_session_title(session_id, current_user.id, request.title)
     return APIResponse.success()
 
 @router.post("/{session_id}/stop", response_model=APIResponse[None])
@@ -98,10 +134,16 @@ async def get_all_sessions(
             status=s.status,
             unread_message_count=s.unread_message_count,
             latest_message=s.latest_message,
-            latest_message_at=int(s.latest_message_at.timestamp()) if s.latest_message_at else None,
-            is_shared=s.is_shared
-        ) for s in summaries
-    ]
+                latest_message_at=int(s.latest_message_at.timestamp()) if s.latest_message_at else None,
+                is_shared=s.is_shared,
+                estimated_cost=s.estimated_cost,
+                spent_credits=s.spent_credits,
+                max_budget=s.max_budget,
+                mode=s.mode,
+                permissions=s.permissions,
+                risk_level=s.risk_level,
+            ) for s in summaries
+        ]
     return APIResponse.success(ListSessionResponse(sessions=session_items))
 
 @router.post("")
@@ -119,10 +161,16 @@ async def stream_sessions(
                     status=s.status,
                     unread_message_count=s.unread_message_count,
                     latest_message=s.latest_message,
-                    latest_message_at=int(s.latest_message_at.timestamp()) if s.latest_message_at else None,
-                    is_shared=s.is_shared
-                ) for s in summaries
-            ]
+                latest_message_at=int(s.latest_message_at.timestamp()) if s.latest_message_at else None,
+                is_shared=s.is_shared,
+                estimated_cost=s.estimated_cost,
+                spent_credits=s.spent_credits,
+                max_budget=s.max_budget,
+                mode=s.mode,
+                permissions=s.permissions,
+                risk_level=s.risk_level,
+            ) for s in summaries
+        ]
             yield ServerSentEvent(
                 event="sessions",
                 data=ListSessionResponse(sessions=session_items).model_dump_json()

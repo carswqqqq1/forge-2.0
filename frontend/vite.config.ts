@@ -9,6 +9,9 @@ export default defineConfig({
     vue(),
     (monacoEditorPlugin as any).default({})
   ],
+  build: {
+    target: 'esnext',
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')

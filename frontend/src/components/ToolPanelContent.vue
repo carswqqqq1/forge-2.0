@@ -25,7 +25,7 @@
       </div>
       <div
         class="flex flex-col rounded-[12px] overflow-hidden bg-[var(--background-gray-main)] border border-[var(--border-dark)] dark:border-black/30 shadow-[0px_4px_32px_0px_rgba(0,0,0,0.04)] flex-1 min-h-0 mt-[16px]">
-        <component v-if="toolInfo" :is="toolInfo.view" :live="live" :sessionId="sessionId"
+        <component v-if="toolInfo && toolInfo.view" :is="toolInfo.view" :live="live" :sessionId="sessionId"
           :toolContent="toolContent" :isShare="isShare" />
         <div class="mt-auto flex w-full items-center gap-2 px-4 h-[44px] relative" v-if="!realTime">
           <button

@@ -55,6 +55,7 @@ class UserDocument(BaseDocument[User], id_field="user_id", domain_model_class=Us
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
     last_login_at: Optional[datetime] = None
+    credits: int = 200
 
     class Settings:
         name = "users"
@@ -98,6 +99,14 @@ class SessionDocument(BaseDocument[Session], id_field="session_id", domain_model
     status: SessionStatus
     files: List[FileInfo] = []
     is_shared: Optional[bool] = False
+    memory_brief: Optional[str] = None
+    goal: Optional[str] = None
+    estimated_cost: int = 0
+    spent_credits: int = 0
+    max_budget: int = 0
+    mode: str = "auto"
+    permissions: str = "standard"
+    risk_level: str = "low"
     class Settings:
         name = "sessions"
         indexes = [

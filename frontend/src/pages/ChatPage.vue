@@ -10,6 +10,10 @@
               <PanelLeft class="size-5 text-[var(--icon-secondary)]" />
             </div>
           </div>
+          <button class="hidden sm:inline-flex items-center gap-2 h-9 px-3 rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] ms-2" @click="showInfoToast('Forge version picker coming soon')">
+            <span class="text-sm font-medium text-[var(--text-primary)]">Forge</span>
+            <ChevronDown :size="14" class="text-[var(--icon-secondary)]" />
+          </button>
         </div>
         <div class="max-w-full sm:max-w-[768px] sm:min-w-[390px] flex w-full flex-col gap-[4px] overflow-hidden">
           <div
@@ -20,6 +24,21 @@
               </span>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
+              <button class="hidden sm:flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]" @click="showInfoToast('No notifications yet')">
+                <Bell :size="16" />
+              </button>
+              <span class="hidden sm:inline-flex h-8 px-3 rounded-full border text-xs items-center border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
+                {{ runModeLabel }}
+              </span>
+              <span class="hidden sm:inline-flex h-8 px-3 rounded-full border text-xs items-center border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
+                Budget {{ maxBudget }}/{{ spentCredits }}
+              </span>
+              <span class="hidden sm:inline-flex h-8 px-3 rounded-full border text-xs items-center border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
+                {{ permissionsLabel }}
+              </span>
+              <span class="hidden sm:inline-flex h-8 px-3 rounded-full border text-xs items-center border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
+                {{ riskLabel }}
+              </span>
               <span class="relative flex-shrink-0" aria-expanded="false" aria-haspopup="dialog">
                 <Popover>
                   <PopoverTrigger>
@@ -131,6 +150,7 @@
 <script setup lang="ts">
 import SimpleBar from '../components/SimpleBar.vue';
 import { ref, onMounted, watch, nextTick, onUnmounted, reactive, toRefs } from 'vue';
+import { computed } from 'vue';
 import { useRouter, onBeforeRouteUpdate } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import ChatBox from '../components/ChatBox.vue';
@@ -148,7 +168,7 @@ import {
 } from '../types/event';
 import ToolPanel from '../components/ToolPanel.vue'
 import PlanPanel from '../components/PlanPanel.vue';
-import { ArrowDown, FileSearch, PanelLeft, Lock, Globe, Link, Check } from 'lucide-vue-next';
+import { ArrowDown, FileSearch, PanelLeft, Lock, Globe, Link, Check, ChevronDown, Bell } from 'lucide-vue-next';
 import ShareIcon from '@/components/icons/ShareIcon.vue';
 import { showErrorToast, showSuccessToast } from '../utils/toast';
 import type { FileInfo } from '../api/file';
@@ -188,6 +208,13 @@ const createInitialState = () => ({
   shareMode: 'private' as 'private' | 'public', // Default to private mode
   linkCopied: false,
   sharingLoading: false // Loading state for share operations
+  ,
+  goal: '',
+  maxBudget: 0,
+  spentCredits: 0,
+  runMode: 'auto',
+  permissions: 'standard',
+  riskLevel: 'low',
 });
 
 // Create reactive state
@@ -205,13 +232,20 @@ const {
   title,
   plan,
   lastNoMessageTool,
+  lastMessageTool,
   lastTool,
   lastEventId,
   cancelCurrentChat,
   attachments,
   shareMode,
   linkCopied,
-  sharingLoading
+  sharingLoading,
+  goal,
+  maxBudget,
+  spentCredits,
+  runMode,
+  permissions,
+  riskLevel,
 } = toRefs(state);
 
 // Non-state refs that don't need reset
@@ -219,6 +253,26 @@ const toolPanel = ref<InstanceType<typeof ToolPanel>>()
 const simpleBarRef = ref<InstanceType<typeof SimpleBar>>();
 const observerRef = ref<HTMLDivElement>();
 const chatContainerRef = ref<HTMLDivElement>();
+const runModeLabel = computed(() => runMode.value === 'checkpoint' ? 'Checkpoint Mode' : 'Auto Mode');
+const permissionsLabel = computed(() => permissions.value === 'guarded' ? 'Guarded Access' : 'Standard Access');
+const riskLabel = computed(() => `${String(riskLevel.value || 'low').charAt(0).toUpperCase()}${String(riskLevel.value || 'low').slice(1)} Risk`);
+
+const cleanErrorMessage = (raw: string): string => {
+  const source = String(raw || '').trim();
+  if (!source) {
+    return 'Forge hit a blocker on this run. Retry the task or adjust the prompt.';
+  }
+  if (source.toLowerCase().includes('404')) {
+    return 'Forge hit a dead page while browsing. Try again and it will move to a different source.';
+  }
+  if (source.toLowerCase().includes('budget')) {
+    return source;
+  }
+  if (source.toLowerCase().includes('unexpected tokens remaining')) {
+    return 'Forge received a malformed tool response during browsing. Retry the run and it should recover cleanly.';
+  }
+  return source.length > 220 ? `${source.slice(0, 217)}...` : source;
+}
 
 // Reset all refs to their initial values
 const resetState = () => {
@@ -308,6 +362,7 @@ const handleStepEvent = (stepData: StepEventData) => {
     }
   } else if (stepData.status === 'failed') {
     isLoading.value = false;
+    plan.value = undefined;
   }
 }
 
@@ -317,16 +372,17 @@ const handleErrorEvent = (errorData: ErrorEventData) => {
   let errorMessage = 'Something went wrong while processing this task. Please try again.';
 
   // Show more informative error messages if available
-  if (errorData.message) {
-    const msg = errorData.message.toLowerCase();
+  if (errorData.error) {
+    const cleanedError = cleanErrorMessage(errorData.error);
+    const msg = cleanedError.toLowerCase();
 
     // Check for specific error types
     if (msg.includes('timeout') || msg.includes('timed out')) {
       errorMessage = 'Browser navigation timed out. The page took too long to load. Moving to next step...';
     } else if (msg.includes('navigation')) {
-      errorMessage = `Browser navigation error: ${errorData.message}. You can retry or start a new task.`;
+      errorMessage = `Browser navigation error: ${cleanedError}`;
     } else {
-      errorMessage = `Task encountered an error: ${errorData.message}. You can retry or start a new task.`;
+      errorMessage = `Run blocked: ${cleanedError}`;
     }
   }
 
@@ -465,6 +521,12 @@ const restoreSession = async () => {
   const session = await agentApi.getSession(sessionId.value);
   // Initialize share mode based on session state
   shareMode.value = session.is_shared ? 'public' : 'private';
+  goal.value = session.goal || '';
+  maxBudget.value = session.max_budget || 0;
+  spentCredits.value = session.spent_credits || session.estimated_cost || 0;
+  runMode.value = session.mode || 'auto';
+  permissions.value = session.permissions || 'standard';
+  riskLevel.value = session.risk_level || 'low';
   realTime.value = false;
   for (const event of session.events) {
     handleEvent(event);
@@ -512,9 +574,14 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (cancelCurrentChat.value) {
-    cancelCurrentChat.value();
-    cancelCurrentChat.value = null;
+  // Properly cancel any active SSE connection to prevent memory leaks
+  try {
+    if (cancelCurrentChat.value) {
+      cancelCurrentChat.value();
+      cancelCurrentChat.value = null;
+    }
+  } catch (error) {
+    console.error('Error cancelling chat on unmount:', error);
   }
 })
 
@@ -529,7 +596,7 @@ const isLiveTool = (tool: ToolContent) => {
   if (!isLastNoMessageTool(tool)) {
     return false;
   }
-  if (tool.timestamp > Date.now() - 5 * 60 * 1000) {
+  if (tool.timestamp && tool.timestamp > Date.now() - 5 * 60 * 1000) {
     return true;
   }
   return false;

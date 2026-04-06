@@ -1,56 +1,29 @@
 <template>
   <div
     @click="handleSessionClick"
-    class="group flex items-center rounded-[10px] cursor-pointer transition-colors w-full gap-[12px] h-[36px] flex-shrink-0 pointer-events-auto ps-[9px] pe-[2px] active:bg-[var(--fill-tsp-white-dark)]"
+    class="group flex items-center rounded-[10px] cursor-pointer transition-colors w-full gap-[10px] h-[40px] flex-shrink-0 pointer-events-auto ps-[9px] pe-[6px] active:bg-[var(--fill-tsp-white-dark)]"
     :class="isCurrentSession ? 'bg-[var(--fill-tsp-white-main)]' : 'hover:bg-[var(--fill-tsp-white-light)]'">
-
-    <!-- 状态图标 -->
     <div class="shrink-0 size-[18px] flex items-center justify-center relative">
-      <template v-if="session.status === SessionStatus.RUNNING || session.status === SessionStatus.PENDING">
-        <div class="border rounded-full animate-spin" style="width: 18px; height: 18px; border-width: 2px; border-color: var(--fill-blue); border-top-color: var(--icon-brand);"></div>
-      </template>
-      <template v-else-if="session.status === SessionStatus.WAITING">
-        <svg height="18" width="18" fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-          <g clip-path="url(#waiting-clip)">
-            <circle cx="8" cy="8" r="6.5" stroke="var(--function-warning)" stroke-dasharray="2.44 1.62" stroke-width="1.5"></circle>
-          </g>
-          <defs><clipPath id="waiting-clip"><rect height="16" width="16" fill="white"></rect></clipPath></defs>
-        </svg>
-      </template>
-      <template v-else>
-        <!-- Use dynamic icon based on task content -->
-        <template v-if="getTaskIcon === Code2">
-          <Code2 :size="18" class="text-[var(--icon-primary)]" />
-        </template>
-        <template v-else-if="getTaskIcon === Search">
-          <Search :size="18" class="text-[var(--icon-primary)]" />
-        </template>
-        <template v-else-if="getTaskIcon === FileText">
-          <FileText :size="18" class="text-[var(--icon-primary)]" />
-        </template>
-        <template v-else-if="getTaskIcon === Globe">
-          <Globe :size="18" class="text-[var(--icon-primary)]" />
-        </template>
-        <!-- Default icon -->
-        <template v-else>
-          <img
-            class="size-[18px] object-cover [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(7%)_saturate(141%)_hue-rotate(349deg)_brightness(95%)_contrast(86%)]"
-            :alt="session.title || ''"
-            src="https://files.manuscdn.com/assets/icon/session/chatting.svg" />
-        </template>
-      </template>
-
+      <component :is="taskIconComponent" :size="18" class="text-[var(--icon-primary)]" />
     </div>
 
-    <!-- 标题 -->
-    <div class="flex-1 min-w-0 flex gap-[4px] items-center text-[14px] text-[var(--text-primary)]">
+    <div class="shrink-0 size-[14px] flex items-center justify-center">
+      <LoaderCircle v-if="statusType === 'running'" :size="14" class="animate-spin text-[#2b6cf6]" />
+      <CheckCircle2 v-else-if="statusType === 'done'" :size="14" class="text-[#17a34a]" />
+      <CircleX v-else-if="statusType === 'failed'" :size="14" class="text-[#dc2626]" />
+      <Circle v-else :size="14" class="text-[var(--icon-tertiary)] fill-[var(--fill-tsp-white-dark)]" />
+    </div>
+
+    <div class="flex-1 min-w-0 flex gap-[6px] items-center text-[14px] text-[var(--text-primary)]">
       <span class="truncate" :title="session.title || t('New Chat')">
         {{ session.title || t('New Chat') }}
       </span>
     </div>
 
-    <!-- 省略号菜单 -->
     <div class="shrink-0 flex items-center gap-1">
+      <span class="text-[11px] text-[var(--text-tertiary)] group-hover:hidden">
+        {{ relativeTime }}
+      </span>
       <div
         @click.stop="handleSessionMenuClick"
         class="group-hover:flex hidden size-8 rounded-[8px] cursor-pointer items-center justify-center hover:bg-[var(--fill-tsp-white-light)]"
@@ -63,16 +36,29 @@
 </template>
 
 <script setup lang="ts">
-import { Ellipsis, Code2, Search, FileText, Globe } from 'lucide-vue-next';
+import {
+  Ellipsis,
+  Code2,
+  Search,
+  FileText,
+  Globe,
+  LoaderCircle,
+  CheckCircle2,
+  Circle,
+  CircleX,
+  PencilLine,
+  Share2,
+  Trash,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { ListSessionItem, SessionStatus } from '../types/response';
-import { useContextMenu, createDangerMenuItem } from '../composables/useContextMenu';
+import { useContextMenu, createDangerMenuItem, createMenuItem } from '../composables/useContextMenu';
 import { useDialog } from '../composables/useDialog';
-import { deleteSession } from '../api/agent';
+import { deleteSession, renameSession, shareSession } from '../api/agent';
 import { showSuccessToast, showErrorToast } from '../utils/toast';
-import { Trash } from 'lucide-vue-next';
+import { copyToClipboard } from '../utils/dom';
 
 interface Props {
   session: ListSessionItem;
@@ -91,67 +77,121 @@ const emit = defineEmits<{
   (e: 'deleted', sessionId: string): void
 }>();
 
-const currentSessionId = computed(() => {
-  return route.params.sessionId as string;
-});
+const currentSessionId = computed(() => route.params.sessionId as string);
+const isCurrentSession = computed(() => currentSessionId.value === props.session.session_id);
 
-const isCurrentSession = computed(() => {
-  return currentSessionId.value === props.session.session_id;
-});
-
-// Determine icon based on task title content
-const getTaskIcon = computed(() => {
+const taskIconComponent = computed(() => {
   const title = (props.session.title || '').toLowerCase();
-
-  if (title.includes('code') || title.includes('script') || title.includes('python') || title.includes('javascript') || title.includes('programming') || title.includes('debug')) {
+  if (title.includes('code') || title.includes('script') || title.includes('python') || title.includes('javascript') || title.includes('debug')) {
     return Code2;
-  } else if (title.includes('search') || title.includes('find') || title.includes('research') || title.includes('lookup')) {
+  }
+  if (title.includes('search') || title.includes('find') || title.includes('research') || title.includes('compare')) {
     return Search;
-  } else if (title.includes('write') || title.includes('create') || title.includes('draft') || title.includes('document') || title.includes('compose') || title.includes('article')) {
-    return FileText;
-  } else if (title.includes('web') || title.includes('website') || title.includes('page') || title.includes('visit') || title.includes('browse')) {
+  }
+  if (title.includes('web') || title.includes('website') || title.includes('browse') || title.includes('page')) {
     return Globe;
   }
+  return FileText;
+});
 
-  // Default: return null (will use the existing icon logic)
-  return null;
+const statusType = computed<'running' | 'done' | 'failed' | 'pending'>(() => {
+  const latest = `${props.session.latest_message || ''}`.toLowerCase();
+  if (props.session.status === SessionStatus.RUNNING) return 'running';
+  if (props.session.status === SessionStatus.COMPLETED && (latest.includes('run blocked') || latest.includes('task encountered an error') || latest.includes('something went wrong'))) {
+    return 'failed';
+  }
+  if (props.session.status === SessionStatus.COMPLETED) return 'done';
+  return 'pending';
+});
+
+const relativeTime = computed(() => {
+  if (!props.session.latest_message_at) return '';
+  const diffSeconds = Math.max(1, Math.floor(Date.now() / 1000) - props.session.latest_message_at);
+  if (diffSeconds < 60) return 'now';
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes}m`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 5) return `${diffWeeks}w`;
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths < 12) return `${diffMonths}mo`;
+  return `${Math.floor(diffDays / 365)}y`;
 });
 
 const handleSessionClick = () => {
   router.push(`/chat/${props.session.session_id}`);
 };
 
+const handleRename = async () => {
+  const nextTitle = window.prompt('Rename task', props.session.title || '');
+  if (!nextTitle || !nextTitle.trim()) return;
+  try {
+    await renameSession(props.session.session_id, nextTitle.trim());
+    showSuccessToast('Task renamed');
+  } catch {
+    showErrorToast('Failed to rename task');
+  }
+};
+
+const handleShare = async () => {
+  try {
+    await shareSession(props.session.session_id);
+    const copied = await copyToClipboard(`${window.location.origin}/share/${props.session.session_id}`);
+    if (copied) {
+      showSuccessToast('Share link copied');
+    } else {
+      showSuccessToast('Task shared');
+    }
+  } catch {
+    showErrorToast('Failed to share task');
+  }
+};
+
 const handleSessionMenuClick = (event: MouseEvent) => {
   event.stopPropagation();
-
   const target = event.currentTarget as HTMLElement;
   isContextMenuOpen.value = true;
 
-  showContextMenu(props.session.session_id, target, [
-    createDangerMenuItem('delete', t('Delete'), { icon: Trash }),
-  ], (itemKey: string, _: string) => {
-    if (itemKey === 'delete') {
-      showConfirmDialog({
-        title: t('Are you sure you want to delete this session?'),
-        content: t('The chat history of this session cannot be recovered after deletion.'),
-        confirmText: t('Delete'),
-        cancelText: t('Cancel'),
-        confirmType: 'danger',
-        onConfirm: () => {
-          deleteSession(props.session.session_id).then(() => {
-            showSuccessToast(t('Deleted successfully'));
-            emit('deleted', props.session.session_id);
-          }).catch(() => {
-            showErrorToast(t('Failed to delete session'));
-          });
-          if (isCurrentSession.value) {
-            router.push('/');
+  showContextMenu(
+    props.session.session_id,
+    target,
+    [
+      createMenuItem('rename', 'Rename', { icon: PencilLine }),
+      createMenuItem('share', 'Share', { icon: Share2 }),
+      createDangerMenuItem('delete', t('Delete'), { icon: Trash }),
+    ],
+    (itemKey: string) => {
+      if (itemKey === 'rename') {
+        void handleRename();
+      } else if (itemKey === 'share') {
+        void handleShare();
+      } else if (itemKey === 'delete') {
+        showConfirmDialog({
+          title: t('Are you sure you want to delete this session?'),
+          content: t('The chat history of this session cannot be recovered after deletion.'),
+          confirmText: t('Delete'),
+          cancelText: t('Cancel'),
+          confirmType: 'danger',
+          onConfirm: () => {
+            deleteSession(props.session.session_id).then(() => {
+              showSuccessToast(t('Deleted successfully'));
+              emit('deleted', props.session.session_id);
+            }).catch(() => {
+              showErrorToast(t('Failed to delete session'));
+            });
+            if (isCurrentSession.value) {
+              router.push('/');
+            }
           }
-        }
-      })
+        });
+      }
+    },
+    () => {
+      isContextMenuOpen.value = false;
     }
-  }, (_: string) => {
-    isContextMenuOpen.value = false;
-  });
+  );
 };
 </script>

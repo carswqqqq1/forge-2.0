@@ -118,4 +118,14 @@ class MongoUserRepository(UserRepository):
         user_doc = await UserDocument.find_one(UserDocument.email == email.lower())
         exists = user_doc is not None
         logger.debug(f"Email exists: {exists}")
-        return exists 
+        return exists
+
+    async def add_credits(self, user_id: str, credits: int) -> User:
+        """Add or subtract credits for a user"""
+        user_doc = await UserDocument.find_one(UserDocument.user_id == user_id)
+        if not user_doc:
+            raise ValueError(f"User not found: {user_id}")
+        user_doc.credits = max(0, (user_doc.credits or 0) + credits)
+        user_doc.updated_at = user_doc.updated_at
+        await user_doc.save()
+        return user_doc.to_domain()

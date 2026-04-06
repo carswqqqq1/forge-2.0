@@ -45,6 +45,7 @@ class AgentTaskRunner(TaskRunner):
         session_id: str,
         agent_id: str,
         user_id: str,
+        memory_brief: Optional[str],
         sandbox: Sandbox,
         browser: Browser,
         agent_repository: AgentRepository,
@@ -56,6 +57,7 @@ class AgentTaskRunner(TaskRunner):
         self._session_id = session_id
         self._agent_id = agent_id
         self._user_id = user_id
+        self._memory_brief = memory_brief
         self._sandbox = sandbox
         self._browser = browser
         self._search_engine = search_engine
@@ -72,7 +74,8 @@ class AgentTaskRunner(TaskRunner):
             self._sandbox,
             self._browser,
             self._mcp_tool,
-            self._search_engine,
+            memory_brief=self._memory_brief,
+            search_engine=self._search_engine,
         )
 
     async def _put_and_add_event(self, task: Task, event: AgentEvent) -> None:
@@ -196,6 +199,10 @@ class AgentTaskRunner(TaskRunner):
                     if event.tool_content:
                         logger.debug(f"MCP tool_content.result: {event.tool_content.result}")
                         logger.debug(f"MCP tool_content dict: {event.tool_content.model_dump()}")
+                elif event.tool_name == "message":
+                    text = event.function_args.get("text", "")
+                    if text:
+                        event.tool_content = McpToolContent(result=text)
                 else:
                     logger.warning(f"Agent {self._agent_id} received unknown tool event: {event.tool_name}")
         except Exception as e:
@@ -261,6 +268,11 @@ class AgentTaskRunner(TaskRunner):
             if isinstance(event, ToolEvent):
                 # TODO: move to tool function
                 await self._handle_tool_event(event)
+                if event.tool_name == "message" and event.function_name == "message_notify_user":
+                    text = event.function_args.get("text", "")
+                    if text:
+                        yield MessageEvent(message=text)
+                        continue
             elif isinstance(event, MessageEvent):
                 await self._sync_message_attachments_to_storage(event)
             yield event

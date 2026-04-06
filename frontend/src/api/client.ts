@@ -310,7 +310,7 @@ export const createSSEConnection = async <T = any>(
     requestHeaders.Authorization = `Bearer ${token}`;
   }
   
-  // 创建SSE连接
+  // Create SSE connection
   const createConnection = async (): Promise<void> => {
     return new Promise((_resolve, reject) => {
       if (abortController.signal.aborted) {
@@ -329,47 +329,55 @@ export const createSSEConnection = async <T = any>(
           if (response.status === 401) {
             const authError = new Error('Unauthorized');
             const refreshSuccess = await handleSSEAuthError(authError, endpoint, options, callbacks);
-            
+
             if (refreshSuccess) {
               // Update authorization header with new token
               const newToken = getStoredToken();
               if (newToken) {
                 requestHeaders.Authorization = `Bearer ${newToken}`;
-                // Retry connection with new token
-                setTimeout(() => createConnection().catch(console.error), 1000);
+                // Retry connection with new token - only if not already aborted
+                if (!abortController.signal.aborted) {
+                  setTimeout(() => createConnection().catch(console.error), 1000);
+                }
               }
             }
             return;
           }
-          
+
           // Check for other error status codes
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
-          
-          if (onOpen) {
+
+          if (onOpen && !abortController.signal.aborted) {
             onOpen();
           }
         },
         onmessage(event: EventSourceMessage) {
+          if (abortController.signal.aborted) return;
           if (event.event && event.event.trim() !== '') {
             if (onMessage) {
-              onMessage({
-                event: event.event,
-                data: JSON.parse(event.data) as T
-              });
+              try {
+                onMessage({
+                  event: event.event,
+                  data: JSON.parse(event.data) as T
+                });
+              } catch (parseError) {
+                console.error('Error parsing SSE message:', parseError);
+              }
             }
           }
         },
         onclose() {
-          if (onClose) {
+          if (onClose && !abortController.signal.aborted) {
             onClose();
           }
         },
         onerror(err: any) {
+          if (abortController.signal.aborted) return;
           const error = err instanceof Error ? err : new Error(String(err));
           console.error('EventSource error:', error);
-          
+
           if (onError) {
             onError(error);
           }
@@ -377,7 +385,11 @@ export const createSSEConnection = async <T = any>(
         },
       });
 
-      ssePromise.catch(reject);
+      ssePromise.catch((error) => {
+        if (!abortController.signal.aborted) {
+          reject(error);
+        }
+      });
     });
   };
 

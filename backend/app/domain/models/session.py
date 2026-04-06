@@ -26,6 +26,13 @@ class SessionSummary(BaseModel):
     latest_message_at: Optional[datetime] = None
     status: SessionStatus = SessionStatus.PENDING
     is_shared: bool = False
+    memory_brief: Optional[str] = None
+    estimated_cost: int = 0
+    spent_credits: int = 0
+    max_budget: int = 0
+    mode: str = "auto"
+    permissions: str = "standard"
+    risk_level: str = "low"
 
 
 class Session(BaseModel):
@@ -45,6 +52,14 @@ class Session(BaseModel):
     files: List[FileInfo] = []
     status: SessionStatus = SessionStatus.PENDING
     is_shared: bool = False  # Whether this session is shared publicly
+    memory_brief: Optional[str] = None
+    goal: Optional[str] = None
+    estimated_cost: int = 0
+    spent_credits: int = 0
+    max_budget: int = 0
+    mode: str = "auto"
+    permissions: str = "standard"
+    risk_level: str = "low"
 
     def get_last_plan(self) -> Optional[Plan]:
         """Get the last plan from the events"""

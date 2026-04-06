@@ -11,21 +11,42 @@
                 <PanelLeft class="size-5 text-[var(--icon-secondary)]" />
               </div>
             </div>
-            <div class="flex">
-              <Bot :size="30" />
-              <ManusLogoTextIcon />
+            <button class="flex items-center gap-2 h-9 px-3 rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)]" @click="showVersionToast">
+              <Bot :size="18" />
+              <span class="text-sm font-medium text-[var(--text-primary)]">Forge</span>
+              <ChevronDown :size="14" class="text-[var(--icon-secondary)]" />
+            </button>
+            <div class="hidden sm:flex items-center gap-2 ml-4">
+              <button
+                @click="selectedModelTier = 'regular'"
+                class="h-8 px-3 rounded-full border text-sm"
+                :class="selectedModelTier === 'regular' ? 'bg-black text-white border-black' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-btn-main)]'">
+                Regular
+              </button>
+              <button
+                @click="selectedModelTier = 'max'"
+                class="h-8 px-3 rounded-full border text-sm"
+                :class="selectedModelTier === 'max' ? 'bg-black text-white border-black' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-btn-main)]'">
+                Max
+              </button>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <a v-if="showGithubButton"
-               :href="githubRepositoryUrl"
-               target="_blank"
-               rel="noopener noreferrer"
-               class="items-center justify-center whitespace-nowrap font-medium transition-colors hover:opacity-90 active:opacity-80 px-[12px] gap-[6px] text-sm min-w-16 outline outline-1 -outline-offset-1 hover:bg-[var(--fill-tsp-white-light)] text-[var(--text-primary)] outline-[var(--border-btn-main)] bg-transparent clickable hidden sm:flex rounded-[100px] relative h-[32px] group"
-               title="Visit GitHub Repository">
-              <Github class="size-[18px]" />
-              GitHub
-            </a>
+            <button
+              class="hidden sm:flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]"
+              @click="showInfoToast('No notifications yet')">
+              <Bell :size="16" />
+            </button>
+            <span
+              class="hidden sm:flex h-8 px-3 rounded-full border text-sm items-center gap-2 border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
+              <span class="inline-flex h-2 w-2 rounded-full bg-black"></span>
+              {{ currentUser?.credits ?? '...' }} credits
+            </span>
+            <button
+              class="hidden sm:flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]"
+              @click="showInfoToast('Multi-account support coming soon')">
+              <Plus :size="16" />
+            </button>
             <div class="relative flex items-center" aria-expanded="false" aria-haspopup="dialog"
               @mouseenter="handleUserMenuEnter" @mouseleave="handleUserMenuLeave">
               <div class="relative flex items-center justify-center font-bold cursor-pointer flex-shrink-0">
@@ -50,7 +71,7 @@
             fontFamily:
               'ui-serif, Georgia, Cambria, &quot;Times New Roman&quot;, Times, serif',
           }">
-            {{ $t('Hello') }}, {{ currentUser?.fullname }}
+            {{ $t('Hello') }}, <span v-text="currentUser?.fullname || 'User'"></span>
             <br />
             <span class="text-[var(--text-tertiary)]">
               {{ $t('What can I do for you?') }}
@@ -58,10 +79,35 @@
           </span>
         </div>
         <div class="flex flex-col gap-1 w-full">
+          <div class="flex flex-wrap items-center gap-2 pl-1 pb-3">
+            <button
+              @click="selectedMode = 'auto'"
+              class="h-8 px-3 rounded-full border text-sm"
+              :class="selectedMode === 'auto' ? 'bg-black text-white border-black' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-btn-main)]'">
+              Auto
+            </button>
+            <button
+              @click="selectedMode = 'checkpoint'"
+              class="h-8 px-3 rounded-full border text-sm"
+              :class="selectedMode === 'checkpoint' ? 'bg-black text-white border-black' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-btn-main)]'">
+              Checkpoint
+            </button>
+            <select v-model="selectedBudget"
+              class="h-8 px-3 rounded-full border text-sm bg-[var(--background-white-main)] border-[var(--border-btn-main)] text-[var(--text-secondary)]">
+              <option :value="8">Budget 8</option>
+              <option :value="16">Budget 16</option>
+              <option :value="32">Budget 32</option>
+            </select>
+            <select v-model="selectedPermissions"
+              class="h-8 px-3 rounded-full border text-sm bg-[var(--background-white-main)] border-[var(--border-btn-main)] text-[var(--text-secondary)]">
+              <option value="standard">Standard Access</option>
+              <option value="guarded">Guarded Access</option>
+            </select>
+          </div>
           <div class="flex flex-col bg-[var(--background-gray-main)] w-full">
             <div class="[&amp;:not(:empty)]:pb-2 bg-[var(--background-gray-main)] rounded-[22px_22px_0px_0px]">
             </div>
-            <ChatBox :rows="2" v-model="message" @submit="handleSubmit" :isRunning="false" :attachments="attachments" />
+            <ChatBox :rows="2" v-model="message" @submit="handleSubmit" :isRunning="false" :attachments="attachments" :disabled="(currentUser?.credits ?? 0) <= 0" />
           </div>
         </div>
       </div>
@@ -76,9 +122,8 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import ChatBox from '../components/ChatBox.vue';
 import { createSession } from '../api/agent';
-import { showErrorToast } from '../utils/toast';
-import { Bot, PanelLeft, Github } from 'lucide-vue-next';
-import ManusLogoTextIcon from '../components/icons/ManusLogoTextIcon.vue';
+import { showErrorToast, showInfoToast } from '../utils/toast';
+import { Bot, PanelLeft, ChevronDown, Bell, Plus } from 'lucide-vue-next';
 import type { FileInfo } from '../api/file';
 import { useLeftPanel } from '../composables/useLeftPanel';
 import { useFilePanel } from '../composables/useFilePanel';
@@ -94,12 +139,15 @@ const attachments = ref<FileInfo[]>([]);
 const { toggleLeftPanel, isLeftPanelShow } = useLeftPanel();
 const { hideFilePanel } = useFilePanel();
 const { currentUser } = useAuth();
-const showGithubButton = ref(false);
-const githubRepositoryUrl = ref('https://github.com/simpleyyt/ai-manus');
+const selectedModelTier = ref<'regular' | 'max'>((localStorage.getItem('forge-model-tier') as 'regular' | 'max') || 'regular');
+const selectedMode = ref<'auto' | 'checkpoint'>((localStorage.getItem('forge-run-mode') as 'auto' | 'checkpoint') || 'auto');
+const selectedBudget = ref(Number(localStorage.getItem('forge-run-budget') || '16'));
+const selectedPermissions = ref<'standard' | 'guarded'>((localStorage.getItem('forge-run-permissions') as 'standard' | 'guarded') || 'standard');
+const showVersionToast = () => showInfoToast('Forge version picker coming soon');
 
 // Get first letter of user's fullname for avatar display
 const avatarLetter = computed(() => {
-  return currentUser.value?.fullname?.charAt(0)?.toUpperCase() || 'M';
+  return currentUser.value?.fullname?.charAt(0)?.toUpperCase() || 'F';
 });
 
 // User menu state
@@ -126,21 +174,24 @@ onMounted(() => {
   hideFilePanel();
 })
 
-onMounted(async () => {
-  const clientConfig = await getCachedClientConfig();
-  if (clientConfig) {
-    showGithubButton.value = clientConfig.show_github_button;
-    githubRepositoryUrl.value = clientConfig.github_repository_url;
-  }
-});
-
 const handleSubmit = async () => {
   if (message.value.trim() && !isSubmitting.value) {
     isSubmitting.value = true;
 
     try {
       // Create new Agent
-      const session = await createSession();
+      localStorage.setItem('forge-model-tier', selectedModelTier.value);
+      localStorage.setItem('forge-run-mode', selectedMode.value);
+      localStorage.setItem('forge-run-budget', String(selectedBudget.value));
+      localStorage.setItem('forge-run-permissions', selectedPermissions.value);
+      const session = await createSession(selectedModelTier.value, message.value, {
+        maxBudget: selectedBudget.value,
+        mode: selectedMode.value,
+        permissions: selectedPermissions.value,
+      });
+      if (currentUser.value) {
+        currentUser.value.credits = Math.max(0, (currentUser.value.credits ?? 0) - (session.spent_credits ?? session.estimated_cost ?? 0));
+      }
       const sessionId = session.session_id;
 
       // Navigate to new route with session_id, passing initial message via state
@@ -158,8 +209,9 @@ const handleSubmit = async () => {
       });
     } catch (error) {
       console.error('Failed to create session:', error);
-      showErrorToast(t('Failed to create session, please try again later'));
+      showErrorToast((error as any)?.response?.data?.msg || t('Failed to create session, please try again later'));
       isSubmitting.value = false;
+      // Note: Don't clear message/attachments to allow user to retry
     }
   }
 };

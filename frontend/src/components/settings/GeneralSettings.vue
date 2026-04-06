@@ -46,7 +46,6 @@ const { currentLocale, setLocale } = useLocale()
 const selectedLanguage = ref<Locale>(currentLocale.value)
 
 const languageOptions: SelectOption[] = [
-  { value: 'zh', label: t('Simplified Chinese') },
   { value: 'en', label: t('English') },
 ]
 

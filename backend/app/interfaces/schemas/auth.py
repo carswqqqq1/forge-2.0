@@ -148,6 +148,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_login_at: Optional[datetime] = None
+    credits: int = 0
     
     @staticmethod
     def from_user(user) -> 'UserResponse':
@@ -161,6 +162,8 @@ class UserResponse(BaseModel):
             created_at=user.created_at,
             updated_at=user.updated_at,
             last_login_at=user.last_login_at
+            ,
+            credits=getattr(user, "credits", 0)
         )
 
 

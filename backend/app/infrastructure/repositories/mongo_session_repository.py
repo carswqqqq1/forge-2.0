@@ -18,6 +18,13 @@ SESSION_LIST_PROJECTION = {
     "latest_message_at": 1,
     "status": 1,
     "is_shared": 1,
+    "memory_brief": 1,
+    "estimated_cost": 1,
+    "spent_credits": 1,
+    "max_budget": 1,
+    "mode": 1,
+    "permissions": 1,
+    "risk_level": 1,
 }
 
 class MongoSessionRepository(SessionRepository):
@@ -71,6 +78,13 @@ class MongoSessionRepository(SessionRepository):
                 latest_message_at=doc.get("latest_message_at"),
                 status=doc.get("status", SessionStatus.PENDING),
                 is_shared=doc.get("is_shared", False),
+                memory_brief=doc.get("memory_brief"),
+                estimated_cost=doc.get("estimated_cost", 0),
+                spent_credits=doc.get("spent_credits", 0),
+                max_budget=doc.get("max_budget", 0),
+                mode=doc.get("mode", "auto"),
+                permissions=doc.get("permissions", "standard"),
+                risk_level=doc.get("risk_level", "low"),
             ))
         return summaries
     
@@ -209,3 +223,12 @@ class MongoSessionRepository(SessionRepository):
         if not result:
             raise ValueError(f"Session {session_id} not found")
 
+    async def update_memory_brief(self, session_id: str, memory_brief: Optional[str]) -> None:
+        """Update the persistent memory brief of a session"""
+        result = await SessionDocument.find_one(
+            SessionDocument.session_id == session_id
+        ).update(
+            {"$set": {"memory_brief": memory_brief, "updated_at": datetime.now(UTC)}}
+        )
+        if not result:
+            raise ValueError(f"Session {session_id} not found")

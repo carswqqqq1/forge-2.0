@@ -69,6 +69,7 @@ class AgentDomainService:
             session_id=session.id,
             agent_id=session.agent_id,
             user_id=session.user_id,
+            memory_brief=session.memory_brief,
             sandbox=sandbox,
             browser=browser,
             file_storage=self._file_storage,
@@ -91,7 +92,10 @@ class AgentDomainService:
         if not task_id:
             return None
         
-        return self._task_cls.get(task_id)
+        task = self._task_cls.get(task_id)
+        if task is None:
+            logger.warning(f"Task {task_id} missing from registry for session {session.id}")
+        return task
 
     async def stop_session(self, session_id: str) -> None:
         """Stop a session"""
@@ -126,7 +130,7 @@ class AgentDomainService:
             task = await self._get_task(session)
 
             if message:
-                if session.status != SessionStatus.RUNNING:
+                if session.status != SessionStatus.RUNNING or task is None:
                     task = await self._create_task(session)
                     if not task:
                         raise RuntimeError("Failed to create task")
@@ -139,6 +143,8 @@ class AgentDomainService:
                     attachments=[FileInfo(file_id=attachment["file_id"], filename=attachment["filename"]) for attachment in attachments] if attachments else None
                 )
 
+                if not task:
+                    task = await self._create_task(session)
                 event_id = await task.input_stream.put(message_event.model_dump_json())
 
                 message_event.id = event_id

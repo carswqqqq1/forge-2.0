@@ -20,6 +20,7 @@ class User(BaseModel):
     created_at: datetime = datetime.now(UTC)
     updated_at: datetime = datetime.now(UTC)
     last_login_at: Optional[datetime] = None
+    credits: int = 200
     
     @field_validator('fullname')
     @classmethod

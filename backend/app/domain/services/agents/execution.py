@@ -37,11 +37,13 @@ class ExecutionAgent(BaseAgent):
         agent_id: str,
         agent_repository: AgentRepository,
         tools: List[BaseToolkit],
+        memory_brief: Optional[str] = None,
     ):
         super().__init__(
             agent_id=agent_id,
             agent_repository=agent_repository,
-            tools=tools
+            tools=tools,
+            memory_brief=memory_brief,
         )
     
     async def execute_step(self, plan: Plan, step: Step, message: Message) -> AsyncGenerator[BaseEvent, None]:
@@ -82,12 +84,20 @@ class ExecutionAgent(BaseAgent):
 
     async def summarize(self) -> AsyncGenerator[BaseEvent, None]:
         message = SUMMARIZE_PROMPT
-        async for event in self.execute(message):
-            if isinstance(event, MessageEvent):
-                logger.debug(f"Execution agent summary: {event.message}")
-                parsed_response = await self._parse_json(event.message)
-                message = Message.model_validate(parsed_response)
-                attachments = [FileInfo(file_path=file_path) for file_path in message.attachments]
-                yield MessageEvent(message=message.message, attachments=attachments)
-                continue
-            yield event
+        try:
+            async for event in self.execute(message):
+                if isinstance(event, MessageEvent):
+                    try:
+                        logger.debug(f"Execution agent summary: {event.message}")
+                        parsed_response = await self._parse_json(event.message)
+                        message = Message.model_validate(parsed_response)
+                        attachments = [FileInfo(file_path=file_path) for file_path in message.attachments]
+                        yield MessageEvent(message=message.message, attachments=attachments)
+                    except Exception as e:
+                        logger.exception(f"Error parsing summary response")
+                        yield ErrorEvent(error=f"Failed to parse summary: {str(e)}")
+                    continue
+                yield event
+        except Exception as e:
+            logger.exception(f"Error during summarization")
+            yield ErrorEvent(error=f"Summarization error: {str(e)}")

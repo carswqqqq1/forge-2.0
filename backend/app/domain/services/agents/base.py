@@ -45,7 +45,8 @@ class BaseAgent(ABC):
         self,
         agent_id: str,
         agent_repository: AgentRepository,
-        tools: List[BaseToolkit] = []
+        tools: List[BaseToolkit] = [],
+        memory_brief: Optional[str] = None,
     ):
         settings = get_settings()
         self._agent_id = agent_id
@@ -67,6 +68,7 @@ class BaseAgent(ABC):
         )
         self.toolkits = tools
         self.memory = None
+        self._memory_brief = memory_brief
 
     async def _parse_json(self, text: str) -> dict:
         """Parse JSON from LLM output using RetryWithErrorOutputParser."""
@@ -157,6 +159,8 @@ class BaseAgent(ABC):
         await self._ensure_memory()
         if self.memory.empty:
             self.memory.add_message(SystemMessage(content=self.system_prompt))
+            if self._memory_brief:
+                self.memory.add_message(SystemMessage(content=f"Persistent memory brief:\n{self._memory_brief}"))
         self.memory.add_messages(messages)
         await self._repository.save_memory(self._agent_id, self.name, self.memory)
     
@@ -182,23 +186,55 @@ class BaseAgent(ABC):
         )
 
         context = list(self.memory.get_messages())
+        last_exception = None
         for attempt in range(self.max_retries):
             try:
                 message: AIMessage = await chain.ainvoke(context)
                 break
-            except ToolCallParseError as e:
-                if attempt == self.max_retries - 1:
-                    raise
-                logger.warning(
-                    "Attempt %d/%d: tool call JSON repair failed, retrying model",
-                    attempt + 1, self.max_retries,
-                )
-                if attempt == 0:
-                    # Stage 4 (RetryOutputParser style): silent retry, same context.
-                    pass
+            except Exception as e:
+                last_exception = e
+                error_str = str(e)
+
+                # Handle rate limiting (429 errors) with exponential backoff
+                if "429" in error_str or "rate_limit" in error_str.lower():
+                    if attempt < self.max_retries - 1:
+                        backoff_delay = min((2 ** attempt) * self.retry_interval, 60)
+                        logger.warning(
+                            "Attempt %d/%d: rate limited (429), retrying after %.1fs",
+                            attempt + 1, self.max_retries, backoff_delay
+                        )
+                        await asyncio.sleep(backoff_delay)
+                        continue
+                    else:
+                        logger.error("Rate limited on final attempt, failing request")
+                        raise
+
+                # Handle tool call parsing errors
+                if isinstance(e, ToolCallParseError):
+                    if attempt == self.max_retries - 1:
+                        raise
+                    logger.warning(
+                        "Attempt %d/%d: tool call JSON repair failed, retrying model",
+                        attempt + 1, self.max_retries,
+                    )
+                    if attempt == 0:
+                        # Stage 4 (RetryOutputParser style): silent retry, same context.
+                        pass
+                    else:
+                        # Stage 5 (RetryWithErrorOutputParser style): add error feedback.
+                        context = e.make_retry_context(context)
                 else:
-                    # Stage 5 (RetryWithErrorOutputParser style): add error feedback.
-                    context = e.make_retry_context(context)
+                    # Handle other exceptions with exponential backoff
+                    if attempt < self.max_retries - 1:
+                        backoff_delay = min((2 ** attempt) * self.retry_interval, 60)
+                        logger.warning(
+                            "Attempt %d/%d: model call failed (%s), retrying after %.1fs",
+                            attempt + 1, self.max_retries, type(e).__name__, backoff_delay
+                        )
+                        await asyncio.sleep(backoff_delay)
+                    else:
+                        raise
+
         logger.debug(f"Response from model: {message}")
 
         await self._add_to_memory([message])

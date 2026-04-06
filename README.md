@@ -1,14 +1,20 @@
 # AI Manus × Claw
 
+Forge local default:
+- NVIDIA API Catalog / NIM
+- `API_BASE=https://integrate.api.nvidia.com/v1`
+- `MODEL_NAME=openai/gpt-oss-20b`
+- `SEARCH_PROVIDER=tavily`
+
 English | [中文](README_zh.md) | [Official Site](https://ai-manus.com) | [Documents](https://docs.ai-manus.com/#/en/)
 
 [![GitHub stars](https://img.shields.io/github/stars/simpleyyt/ai-manus?style=social)](https://github.com/simpleyyt/ai-manus/stargazers)
 &ensp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-AI Manus is a general-purpose AI Agent system that supports running various tools and operations in a sandbox environment. Now with **Claw** — a deeply integrated [OpenClaw](https://github.com/anthropics/openclaw) AI assistant that brings one-click deployment, per-user isolated containers, and seamless chat history to the Manus ecosystem.
+Forge is a general-purpose AI Agent system that supports running various tools and operations in a sandbox environment.
 
-Enjoy your own agent with AI Manus × Claw!
+Enjoy your own agent with Forge!
 
 👏 Join [QQ Group(1005477581)](https://qun.qq.com/universal-share/share?ac=1&authKey=p4X3Da5iMpR4liAenxwvhs7IValPKiCFtUevRlJouz9qSTSZsMnPJc3hzsJjgQYv&busi_data=eyJncm91cENvZGUiOiIxMDA1NDc3NTgxIiwidG9rZW4iOiJNZmUrTmQ0UzNDZDNqNDFVdjVPS1VCRkJGRWVlV0R3RFJSRVFoZDAwRjFDeUdUM0t6aUIyczlVdzRjV1BYN09IIiwidWluIjoiMzQyMjExODE1In0%3D&data=C3B-E6BlEbailV32co77iXL5vxPIhtD9y_itWLSq50hKqosO_55_isOZym2Faaq4hs9-517tUY8GSWaDwPom-A&svctype=4&tempid=h5_group_info)
 

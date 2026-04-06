@@ -91,7 +91,7 @@ class PlaywrightBrowser:
                         # Close all pages
                         for page in pages:
                             # Avoid closing self.page multiple times
-                            if page != self.page or (self.page and not self.page.is_closed()):
+                            if page != self.page and not page.is_closed():
                                 await page.close()
             
             # Ensure the current page is closed (if it exists and is not closed)
