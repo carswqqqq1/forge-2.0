@@ -13,6 +13,7 @@ SESSION_LIST_PROJECTION = {
     "session_id": 1,
     "user_id": 1,
     "title": 1,
+    "workspace_id": 1,
     "unread_message_count": 1,
     "latest_message": 1,
     "latest_message_at": 1,
@@ -66,6 +67,7 @@ class MongoSessionRepository(SessionRepository):
                 id=doc["session_id"],
                 user_id=doc["user_id"],
                 title=doc.get("title"),
+                workspace_id=doc.get("workspace_id"),
                 unread_message_count=doc.get("unread_message_count", 0),
                 latest_message=doc.get("latest_message"),
                 latest_message_at=doc.get("latest_message_at"),
@@ -208,4 +210,3 @@ class MongoSessionRepository(SessionRepository):
         )
         if not result:
             raise ValueError(f"Session {session_id} not found")
-

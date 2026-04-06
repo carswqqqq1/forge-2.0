@@ -25,6 +25,16 @@ class DockerSandbox(Sandbox):
         self._vnc_url = f"ws://{self.ip}:5901"
         self._cdp_url = f"http://{self.ip}:9222"
         self._container_name = container_name
+
+    @staticmethod
+    def _normalize_path(path: str | None) -> str | None:
+        settings = get_settings()
+        return settings.normalize_sandbox_path(path)
+
+    @staticmethod
+    def _normalize_text(value: str | None) -> str | None:
+        settings = get_settings()
+        return settings.normalize_sandbox_text(value)
     
     @property
     def id(self) -> str:
@@ -130,6 +140,10 @@ class DockerSandbox(Sandbox):
 
     async def ensure_sandbox(self) -> None:
         """Ensure sandbox is ready by checking that all services are RUNNING"""
+        settings = get_settings()
+        if settings.standalone_dev_mode:
+            return
+
         max_retries = 30  # Maximum number of retries
         retry_interval = 2  # Seconds between retries
         
@@ -186,8 +200,8 @@ class DockerSandbox(Sandbox):
             f"{self.base_url}/api/v1/shell/exec",
             json={
                 "id": session_id,
-                "exec_dir": exec_dir,
-                "command": command
+                "exec_dir": self._normalize_path(exec_dir),
+                "command": self._normalize_text(command)
             }
         )
         return ToolResult(**response.json())
@@ -249,7 +263,7 @@ class DockerSandbox(Sandbox):
         response = await self.client.post(
             f"{self.base_url}/api/v1/file/write",
             json={
-                "file": file,
+                "file": self._normalize_path(file),
                 "content": content,
                 "append": append,
                 "leading_newline": leading_newline,
@@ -275,7 +289,7 @@ class DockerSandbox(Sandbox):
         response = await self.client.post(
             f"{self.base_url}/api/v1/file/read",
             json={
-                "file": file,
+                "file": self._normalize_path(file),
                 "start_line": start_line,
                 "end_line": end_line,
                 "sudo": sudo
@@ -343,7 +357,7 @@ class DockerSandbox(Sandbox):
         response = await self.client.post(
             f"{self.base_url}/api/v1/file/replace",
             json={
-                "file": file,
+                "file": self._normalize_path(file),
                 "old_str": old_str,
                 "new_str": new_str,
                 "sudo": sudo
@@ -365,7 +379,7 @@ class DockerSandbox(Sandbox):
         response = await self.client.post(
             f"{self.base_url}/api/v1/file/search",
             json={
-                "file": file,
+                "file": self._normalize_path(file),
                 "regex": regex,
                 "sudo": sudo
             }
@@ -385,7 +399,7 @@ class DockerSandbox(Sandbox):
         response = await self.client.post(
             f"{self.base_url}/api/v1/file/find",
             json={
-                "path": path,
+                "path": self._normalize_path(path),
                 "glob": glob_pattern
             }
         )
@@ -404,7 +418,7 @@ class DockerSandbox(Sandbox):
         """
         # Prepare form data for upload
         files = {"file": (filename or "upload", file_data, "application/octet-stream")}
-        data = {"path": path}
+        data = {"path": self._normalize_path(path)}
         
         response = await self.client.post(
             f"{self.base_url}/api/v1/file/upload",
@@ -424,7 +438,7 @@ class DockerSandbox(Sandbox):
         """
         response = await self.client.get(
             f"{self.base_url}/api/v1/file/download",
-            params={"path": path}
+            params={"path": self._normalize_path(path)}
         )
         response.raise_for_status()
         
@@ -473,7 +487,8 @@ class DockerSandbox(Sandbox):
         try:
             if self.client:
                 await self.client.aclose()
-            if self.container_name:
+            settings = get_settings()
+            if self.container_name and not settings.standalone_dev_mode and self.container_name != "dev-sandbox":
                 docker_client = docker.from_env()
                 docker_client.containers.get(self.container_name).remove(force=True)
             return True
@@ -490,6 +505,9 @@ class DockerSandbox(Sandbox):
           - "browser_use"  → BrowserUseBrowser  (default)
         """
         settings = get_settings()
+        if settings.standalone_dev_mode:
+            logger.info("Using standalone Playwright browser")
+            return PlaywrightBrowser("launch://chrome")
         engine = (settings.browser_engine or "browser_use").lower().strip()
         if engine == "browser_use":
             logger.info("Using BrowserUseBrowser engine for CDP URL: %s", self.cdp_url)

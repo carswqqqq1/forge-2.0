@@ -6,6 +6,44 @@ import { apiClient, ApiResponse } from './client';
  */
 export type UserRole = 'admin' | 'user';
 
+export interface ModelPreferences {
+  model_provider: string;
+  model_name: string;
+  temperature: number;
+  max_tokens: number;
+}
+
+export interface UserMemoryItem {
+  id: string;
+  content: string;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+}
+
+export interface AgentPreset {
+  id: string;
+  name: string;
+  description: string;
+  instructions: string;
+  model_provider?: string | null;
+  model_name?: string | null;
+  temperature?: number | null;
+  max_tokens?: number | null;
+  workspace_id?: string | null;
+}
+
+export interface ForgeProfile {
+  model_preferences: ModelPreferences;
+  memories: UserMemoryItem[];
+  workspaces: Workspace[];
+  agent_presets: AgentPreset[];
+}
+
 /**
  * User response type
  */
@@ -18,6 +56,7 @@ export interface User {
   created_at: string;
   updated_at: string;
   last_login_at?: string;
+  forge_profile: ForgeProfile;
 }
 
 /**
@@ -131,6 +170,10 @@ export interface ResetPasswordRequest {
   new_password: string;
 }
 
+export interface UpdateForgeProfileRequest {
+  forge_profile: ForgeProfile;
+}
+
 
 
 /**
@@ -188,6 +231,16 @@ export async function changeFullname(request: ChangeFullnameRequest): Promise<Us
  */
 export async function getCurrentUser(): Promise<User> {
   const response = await apiClient.get<ApiResponse<User>>('/auth/me');
+  return response.data.data;
+}
+
+export async function getForgeProfile(): Promise<ForgeProfile> {
+  const response = await apiClient.get<ApiResponse<ForgeProfile>>('/auth/forge-profile');
+  return response.data.data;
+}
+
+export async function updateForgeProfile(request: UpdateForgeProfileRequest): Promise<ForgeProfile> {
+  const response = await apiClient.put<ApiResponse<ForgeProfile>>('/auth/forge-profile', request);
   return response.data.data;
 }
 

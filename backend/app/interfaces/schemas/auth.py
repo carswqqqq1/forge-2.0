@@ -2,6 +2,7 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 from datetime import datetime
 from app.domain.models.user import UserRole
+from app.domain.models.user import ForgeProfile
 
 
 class LoginRequest(BaseModel):
@@ -148,6 +149,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_login_at: Optional[datetime] = None
+    forge_profile: ForgeProfile
     
     @staticmethod
     def from_user(user) -> 'UserResponse':
@@ -160,8 +162,14 @@ class UserResponse(BaseModel):
             is_active=user.is_active,
             created_at=user.created_at,
             updated_at=user.updated_at,
-            last_login_at=user.last_login_at
+            last_login_at=user.last_login_at,
+            forge_profile=user.forge_profile
         )
+
+
+class UpdateForgeProfileRequest(BaseModel):
+    """Replace the user's Forge profile state."""
+    forge_profile: ForgeProfile
 
 
 class LoginResponse(BaseModel):

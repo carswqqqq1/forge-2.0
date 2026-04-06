@@ -21,6 +21,7 @@ class SessionSummary(BaseModel):
     id: str
     user_id: str
     title: Optional[str] = None
+    workspace_id: Optional[str] = None
     unread_message_count: int = 0
     latest_message: Optional[str] = None
     latest_message_at: Optional[datetime] = None
@@ -32,6 +33,7 @@ class Session(BaseModel):
     """Session model"""
     id: str = Field(default_factory=lambda: uuid.uuid4().hex[:16])
     user_id: str  # User ID that owns this session
+    workspace_id: Optional[str] = None
     sandbox_id: Optional[str] = Field(default=None)  # Identifier for the sandbox environment
     agent_id: str
     task_id: Optional[str] = None

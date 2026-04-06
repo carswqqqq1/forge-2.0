@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from pathlib import PurePosixPath
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -32,6 +33,9 @@ class Settings(BaseSettings):
     model_provider: str = "openai"
     temperature: float = 0.7
     max_tokens: int = 2000
+
+    # Local standalone development configuration
+    standalone_dev_mode: bool = False
     
     # MongoDB configuration
     mongodb_uri: str = "mongodb://mongodb:27017"
@@ -116,6 +120,30 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
+    @property
+    def sandbox_home_dir(self) -> str:
+        """Home directory exposed to the agent for the active sandbox mode."""
+        if self.standalone_dev_mode:
+            return os.path.expanduser("~")
+        return "/home/ubuntu"
+
+    def normalize_sandbox_path(self, path: str | None) -> str | None:
+        """Map canonical sandbox paths onto the local host when standalone mode is enabled."""
+        if not path or not self.standalone_dev_mode:
+            return path
+        if path == "/home/ubuntu":
+            return self.sandbox_home_dir
+        if path.startswith("/home/ubuntu/"):
+            relative = PurePosixPath(path).relative_to("/home/ubuntu")
+            return os.path.join(self.sandbox_home_dir, *relative.parts)
+        return path
+
+    def normalize_sandbox_text(self, value: str | None) -> str | None:
+        """Rewrite sandbox path references inside free-form text for standalone mode."""
+        if not value or not self.standalone_dev_mode:
+            return value
+        return value.replace("/home/ubuntu", self.sandbox_home_dir)
         
     def validate(self):
         """Validate configuration settings"""

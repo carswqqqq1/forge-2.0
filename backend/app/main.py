@@ -28,29 +28,33 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     # Code executed on startup
     logger.info("Application startup - Manus AI Agent initializing")
-    
-    # Initialize MongoDB and Beanie
-    await get_mongodb().initialize()
 
-    # Initialize Beanie
-    await init_beanie(
-        database=get_mongodb().client[settings.mongodb_database],
-        document_models=[AgentDocument, SessionDocument, UserDocument, ClawDocument]
-    )
-    logger.info("Successfully initialized Beanie")
-    
-    # Initialize Redis
-    await get_redis().initialize()
+    if settings.standalone_dev_mode:
+        logger.info("Standalone dev mode enabled - skipping MongoDB and Redis initialization")
+    else:
+        # Initialize MongoDB and Beanie
+        await get_mongodb().initialize()
+
+        # Initialize Beanie
+        await init_beanie(
+            database=get_mongodb().client[settings.mongodb_database],
+            document_models=[AgentDocument, SessionDocument, UserDocument, ClawDocument]
+        )
+        logger.info("Successfully initialized Beanie")
+
+        # Initialize Redis
+        await get_redis().initialize()
     
     try:
         yield
     finally:
         # Code executed on shutdown
         logger.info("Application shutdown - Manus AI Agent terminating")
-        # Disconnect from MongoDB
-        await get_mongodb().shutdown()
-        # Disconnect from Redis
-        await get_redis().shutdown()
+        if not settings.standalone_dev_mode:
+            # Disconnect from MongoDB
+            await get_mongodb().shutdown()
+            # Disconnect from Redis
+            await get_redis().shutdown()
 
 
         logger.info("Cleaning up AgentService instance")

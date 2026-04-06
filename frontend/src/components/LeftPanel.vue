@@ -87,11 +87,16 @@
             <!-- 会话列表 -->
             <template v-if="!isAllTasksCollapsed">
               <div v-if="sessions.length > 0" class="flex flex-col gap-px">
-                <SessionItem
-                  v-for="session in sessions"
-                  :key="session.session_id"
-                  :session="session"
-                  @deleted="handleSessionDeleted" />
+                <div v-for="group in sessionGroups" :key="group.id" class="flex flex-col gap-1 pb-3">
+                  <div class="px-[10px] pt-2 pb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+                    {{ group.name }}
+                  </div>
+                  <SessionItem
+                    v-for="session in group.sessions"
+                    :key="session.session_id"
+                    :session="session"
+                    @deleted="handleSessionDeleted" />
+                </div>
               </div>
               <div v-else class="flex flex-col items-center justify-center gap-4 py-8">
                 <div class="flex flex-col items-center gap-2 text-[var(--text-tertiary)]">
@@ -113,15 +118,17 @@
 import { PanelLeft, SquarePen, Command, MessageSquareDashed, ChevronUp } from 'lucide-vue-next';
 import SessionItem from './SessionItem.vue';
 import { useLeftPanel } from '../composables/useLeftPanel';
-import { ref, onMounted, watch, onUnmounted } from 'vue';
+import { ref, onMounted, watch, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getSessionsSSE, getSessions } from '../api/agent';
 import { getCachedClientConfig } from '../api/config';
 import { ListSessionItem } from '../types/response';
 import { useI18n } from 'vue-i18n';
+import { useAuth } from '../composables/useAuth';
 
 const { t } = useI18n()
 const { isLeftPanelShow, toggleLeftPanel } = useLeftPanel()
+const { currentUser } = useAuth()
 const route = useRoute()
 const router = useRouter()
 
@@ -131,6 +138,24 @@ const isAllTasksCollapsed = ref(false)
 const isListScrolled = ref(false)
 const clawEnabled = ref(false)
 const scrollContainerRef = ref<HTMLElement | null>(null)
+
+const sessionGroups = computed(() => {
+  const workspaceMap = new Map(
+    (currentUser.value?.forge_profile?.workspaces || []).map((workspace) => [workspace.id, workspace.name])
+  );
+  const grouped = new Map<string, { id: string; name: string; sessions: ListSessionItem[] }>();
+
+  for (const session of sessions.value) {
+    const groupId = session.workspace_id || 'personal-inbox';
+    const groupName = session.workspace_id ? workspaceMap.get(session.workspace_id) || t('Personal Inbox') : t('Personal Inbox');
+    if (!grouped.has(groupId)) {
+      grouped.set(groupId, { id: groupId, name: groupName, sessions: [] });
+    }
+    grouped.get(groupId)!.sessions.push(session);
+  }
+
+  return Array.from(grouped.values());
+});
 
 const handleListScroll = () => {
   if (scrollContainerRef.value) {

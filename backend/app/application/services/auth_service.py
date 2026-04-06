@@ -2,7 +2,7 @@ import hashlib
 import secrets
 from typing import Optional
 from datetime import datetime
-from app.domain.models.user import User, UserRole
+from app.domain.models.user import User, UserRole, ForgeProfile
 from app.domain.repositories.user_repository import UserRepository
 from app.application.errors.exceptions import UnauthorizedError, ValidationError, BadRequestError
 from app.core.config import get_settings
@@ -59,6 +59,57 @@ class AuthService:
     def _generate_user_id(self) -> str:
         """Generate unique user ID"""
         return secrets.token_urlsafe(16)
+
+    def _normalize_forge_profile(self, forge_profile: ForgeProfile) -> ForgeProfile:
+        """Trim empty items and clear invalid workspace references before save."""
+        memories = []
+        for memory in forge_profile.memories:
+            content = memory.content.strip()
+            if content:
+                memories.append(memory.model_copy(update={"content": content}))
+
+        workspaces = []
+        for workspace in forge_profile.workspaces:
+            name = workspace.name.strip()
+            if not name:
+                continue
+            workspaces.append(
+                workspace.model_copy(
+                    update={
+                        "name": name,
+                        "description": workspace.description.strip(),
+                        "color": workspace.color.strip() or "#0ea5e9",
+                    }
+                )
+            )
+
+        workspace_ids = {workspace.id for workspace in workspaces}
+        presets = []
+        for preset in forge_profile.agent_presets:
+            name = preset.name.strip()
+            if not name:
+                continue
+            workspace_id = preset.workspace_id if preset.workspace_id in workspace_ids else None
+            presets.append(
+                preset.model_copy(
+                    update={
+                        "name": name,
+                        "description": preset.description.strip(),
+                        "instructions": preset.instructions.strip(),
+                        "model_provider": preset.model_provider.strip() if preset.model_provider else None,
+                        "model_name": preset.model_name.strip() if preset.model_name else None,
+                        "workspace_id": workspace_id,
+                    }
+                )
+            )
+
+        return forge_profile.model_copy(
+            update={
+                "memories": memories,
+                "workspaces": workspaces,
+                "agent_presets": presets,
+            }
+        )
     
     async def register_user(self, fullname: str, password: str, email: str, role: UserRole = UserRole.USER) -> User:
         """Register a new user"""
@@ -294,6 +345,27 @@ class AuthService:
     async def get_user_by_id(self, user_id: str) -> Optional[User]:
         """Get user by ID"""
         return await self.user_repository.get_user_by_id(user_id)
+
+    async def get_forge_profile(self, user_id: str) -> ForgeProfile:
+        """Get a user's Forge profile state."""
+        user = await self.user_repository.get_user_by_id(user_id)
+        if not user:
+            raise ValidationError("User not found")
+        return user.forge_profile
+
+    async def update_forge_profile(self, user_id: str, forge_profile: ForgeProfile) -> ForgeProfile:
+        """Update a user's Forge profile state."""
+        user = await self.user_repository.get_user_by_id(user_id)
+        if not user:
+            raise ValidationError("User not found")
+
+        if not user.is_active:
+            raise UnauthorizedError("User account is inactive")
+
+        user.forge_profile = self._normalize_forge_profile(forge_profile)
+        user.updated_at = datetime.utcnow()
+        updated_user = await self.user_repository.update_user(user)
+        return updated_user.forge_profile
     
     async def deactivate_user(self, user_id: str) -> bool:
         """Deactivate user account"""

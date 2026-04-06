@@ -10,7 +10,7 @@ AI Manus × Claw is a general-purpose AI Agent system with an integrated [OpenCl
 
 | Service | Stack | Port (dev) | Entry Point |
 |---|---|---|---|
-| **Frontend** | Vue 3 + TypeScript, Vite 4, Tailwind CSS | 5173 | `frontend/src/main.ts` |
+| **Frontend** | Vue 3 + TypeScript, Vite 4, Tailwind CSS | 3000 | `frontend/src/main.ts` |
 | **Backend** | Python 3.12, FastAPI, LangChain, Beanie/Motor | 8000 | `backend/app/main.py` |
 | **Sandbox** | Python 3.10, FastAPI, Xvfb/Chrome/VNC | 8080 (API), 5900 (VNC) | `sandbox/app/main.py` |
 | **Claw** | Node.js, OpenClaw Gateway, manus-claw plugin | 18788 | `claw/entrypoint.sh` |
@@ -66,7 +66,7 @@ cp .env.example .env
 ./dev.sh up -d
 ```
 
-This starts: frontend (5173), backend (8000), sandbox (8080), mockserver (8090), MongoDB (27017), Redis.
+This starts: frontend (3000), backend (8000), sandbox (8080), mockserver (8090), MongoDB (27017), Redis.
 
 ### Key `.env` Values for Development
 
@@ -147,7 +147,7 @@ npm run type-check    # vue-tsc type checking
 npm run build         # production build (catches TS + template errors)
 ```
 
-For manual UI testing: start full dev stack (`./dev.sh up -d`), open `http://localhost:5173`.
+For manual UI testing: start full dev stack (`./dev.sh up -d`), open `http://localhost:3000`.
 
 ### Mockserver
 
@@ -161,7 +161,7 @@ curl -X POST http://localhost:8090/v1/chat/completions \
 ### Full-Stack Integration Test
 
 1. `./dev.sh up -d` — start all services
-2. Open `http://localhost:5173`
+2. Open `http://localhost:3000`
 3. Login (or bypass with `AUTH_PROVIDER=none`)
 4. Create session, send message — mockserver returns canned tool calls
 5. Check logs: `./dev.sh logs -f backend`

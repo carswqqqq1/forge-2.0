@@ -21,6 +21,10 @@
           <ProfileSettings @back="goBack" />
         </template>
         
+        <template #studio>
+          <StudioSettings />
+        </template>
+
         <template #settings>
           <GeneralSettings />
         </template>
@@ -33,7 +37,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { UserRound, Settings2 } from 'lucide-vue-next'
+import { UserRound, Settings2, Sparkles } from 'lucide-vue-next'
 import {
   Dialog,
   DialogContent,
@@ -45,6 +49,7 @@ import SettingsTabs from './SettingsTabs.vue'
 import AccountSettings from './AccountSettings.vue'
 import GeneralSettings from './GeneralSettings.vue'
 import ProfileSettings from './ProfileSettings.vue'
+import StudioSettings from './StudioSettings.vue'
 import type { TabItem, SubPageConfig } from './SettingsTabs.vue'
 
 // Use global settings dialog state
@@ -59,6 +64,11 @@ const tabs: TabItem[] = [
     id: 'account',
     label: 'Account',
     icon: UserRound
+  },
+  {
+    id: 'studio',
+    label: 'Studio',
+    icon: Sparkles
   },
   {
     id: 'settings',

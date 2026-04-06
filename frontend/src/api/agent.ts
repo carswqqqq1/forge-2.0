@@ -4,14 +4,28 @@ import { AgentSSEEvent } from '../types/event';
 import { CreateSessionResponse, GetSessionResponse, ShellViewResponse, FileViewResponse, ListSessionResponse, SignedUrlResponse, ShareSessionResponse, SharedSessionResponse } from '../types/response';
 import type { FileInfo } from './file';
 
+export interface CreateSessionRequest {
+  workspace_id?: string;
+  preset_id?: string;
+  model_provider?: string;
+  model_name?: string;
+  temperature?: number;
+  max_tokens?: number;
+  instructions?: string;
+}
+
+export interface ChatAttachment {
+  file_id: string;
+  filename: string;
+}
 
 
 /**
  * Create Session
  * @returns Session
  */
-export async function createSession(): Promise<CreateSessionResponse> {
-  const response = await apiClient.put<ApiResponse<CreateSessionResponse>>('/sessions');
+export async function createSession(request: CreateSessionRequest = {}): Promise<CreateSessionResponse> {
+  const response = await apiClient.put<ApiResponse<CreateSessionResponse>>('/sessions', request);
   return response.data.data;
 }
 
@@ -84,7 +98,7 @@ export const chatWithSession = async (
   sessionId: string, 
   message: string = '',
   eventId?: string,
-  attachments?: string[],
+  attachments?: ChatAttachment[],
   callbacks?: SSECallbacks<AgentSSEEvent['data']>
 ): Promise<() => void> => {
   return createSSEConnection<AgentSSEEvent['data']>(

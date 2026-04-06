@@ -35,6 +35,7 @@ from app.domain.models.file import FileInfo
 from app.domain.services.tools.mcp import MCPToolkit
 from app.domain.models.tool_result import ToolResult
 from app.domain.models.search import SearchResults
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ class AgentTaskRunner(TaskRunner):
         """Download file from storage to sandbox"""
         try:
             file_data, file_info = await self._file_storage.download_file(file_id, self._user_id)
-            file_path = "/home/ubuntu/upload/" + file_info.filename
+            file_path = os.path.join(get_settings().sandbox_home_dir, "upload", file_info.filename)
             result = await self._sandbox.file_upload(file_data, file_path)
             if result.success:
                 file_info.file_path = file_path
@@ -163,14 +164,16 @@ class AgentTaskRunner(TaskRunner):
                 elif event.tool_name == "shell":
                     if "id" in event.function_args:
                         shell_result = await self._sandbox.view_shell(event.function_args["id"], console=True)
-                        event.tool_content = ShellToolContent(console=shell_result.data.get("console", []))
+                        shell_data = shell_result.data if isinstance(shell_result.data, dict) else {}
+                        event.tool_content = ShellToolContent(console=shell_data.get("console", []))
                     else:
                         event.tool_content = ShellToolContent(console="(No Console)")
                 elif event.tool_name == "file":
                     if "file" in event.function_args:
                         file_path = event.function_args["file"]
                         file_read_result = await self._sandbox.file_read(file_path)
-                        file_content: str = file_read_result.data.get("content", "")
+                        file_data = file_read_result.data if isinstance(file_read_result.data, dict) else {}
+                        file_content: str = file_data.get("content", "")
                         event.tool_content = FileToolContent(content=file_content)
                         await self._sync_file_to_storage(file_path)
                     else:

@@ -20,6 +20,18 @@ import {
 } from '../api/auth'
 import { getCachedAuthProvider } from '../api/config'
 
+const createDefaultForgeProfile = () => ({
+  model_preferences: {
+    model_provider: 'openai',
+    model_name: 'gpt-4o',
+    temperature: 0.7,
+    max_tokens: 2000,
+  },
+  memories: [],
+  workspaces: [],
+  agent_presets: [],
+})
+
 // Global auth state
 const currentUser = ref<User | null>(null)
 const isAuthenticated = ref<boolean>(false)
@@ -43,7 +55,8 @@ export function useAuth() {
         role: 'user',
         is_active: true,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        forge_profile: createDefaultForgeProfile(),
       }
       isAuthenticated.value = true
       return
