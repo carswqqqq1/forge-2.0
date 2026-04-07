@@ -19,6 +19,7 @@
               </span>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
+              <CreditsPopover />
               <button class="header-action-btn hidden sm:inline-flex" @click="showInfoToast('Collaboration is coming soon')">
                 <UsersRound :size="15" />
                 <span>Collaborate</span>
@@ -150,6 +151,7 @@ import { useI18n } from 'vue-i18n';
 import ChatBox from '../components/ChatBox.vue';
 import ChatMessage from '../components/ChatMessage.vue';
 import ForgeModelDropdown from '../components/ForgeModelDropdown.vue';
+import CreditsPopover from '../components/CreditsPopover.vue';
 import InputModeToggleBar from '../components/InputModeToggleBar.vue';
 import ModeSuggestionPanel from '../components/ModeSuggestionPanel.vue';
 import WideResearchCard from '../components/WideResearchCard.vue';
@@ -179,7 +181,7 @@ import { useAuth } from '../composables/useAuth';
 import { copyToClipboard } from '../utils/dom';
 import { SessionStatus } from '../types/response';
 import LoadingIndicator from '@/components/ui/LoadingIndicator.vue';
-import { useInputMode } from '../composables/useInputMode';
+import { useInputMode, type InputMode } from '../composables/useInputMode';
 
 const router = useRouter();
 const { t } = useI18n();
@@ -218,7 +220,7 @@ const createInitialState = () => ({
   runMode: 'auto',
   permissions: 'standard',
   riskLevel: 'low',
-  modelTier: 'lite',
+  modelTier: 'regular',
   wideResearch: false,
   isTaskComplete: false,
   followups: [] as string[],
@@ -459,7 +461,7 @@ const applyPrompt = (prompt: string) => {
   chatBoxRef.value?.focusInput();
 };
 
-const handleModeSelect = (mode: 'normal' | 'wide_research' | 'slides' | 'website' | 'design') => {
+const handleModeSelect = (mode: InputMode) => {
   activateMode(mode);
   chatBoxRef.value?.focusInput();
 };
@@ -582,7 +584,7 @@ const restoreSession = async () => {
   runMode.value = session.mode || 'auto';
   permissions.value = session.permissions || 'standard';
   riskLevel.value = session.risk_level || 'low';
-  modelTier.value = session.model_tier || 'lite';
+  modelTier.value = session.model_tier || 'regular';
   wideResearch.value = !!session.wide_research;
   activateMode((session.input_mode as any) || (session.wide_research ? 'wide_research' : 'normal'));
   designModel.value = (session.mode_config?.designModel as any) || 'Forge Image v1';

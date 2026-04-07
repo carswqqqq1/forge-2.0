@@ -329,6 +329,41 @@ class AgentTaskRunner(TaskRunner):
                 yield event
             return
 
+        if input_mode == "spreadsheet":
+            async for event in mode_service.run_spreadsheet_mode(message.message):
+                yield event
+            return
+
+        if input_mode == "video":
+            async for event in mode_service.run_video_mode(message.message):
+                yield event
+            return
+
+        if input_mode == "audio":
+            async for event in mode_service.run_audio_mode(message.message):
+                yield event
+            return
+
+        if input_mode == "visualization":
+            async for event in mode_service.run_visualization_mode(message.message):
+                yield event
+            return
+
+        if input_mode == "develop_apps":
+            async for event in mode_service.run_develop_apps_mode(message.message):
+                yield event
+            return
+
+        if input_mode == "playbook":
+            async for event in mode_service.run_playbook_mode(message.message):
+                yield event
+            return
+
+        if input_mode == "schedule":
+            async for event in mode_service.run_schedule_mode(message.message):
+                yield event
+            return
+
         async for event in self._flow.run(message):
             if isinstance(event, ToolEvent):
                 # TODO: move to tool function

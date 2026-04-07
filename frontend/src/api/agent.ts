@@ -11,14 +11,14 @@ import type { FileInfo } from './file';
  * @returns Session
  */
 export async function createSession(
-  modelTier: 'lite' | 'regular' | 'max' = 'lite',
+  modelTier: 'lite' | 'regular' | 'max' = 'regular',
   prompt: string = '',
   options: {
     maxBudget?: number;
     mode?: 'auto' | 'checkpoint';
     permissions?: 'standard' | 'guarded';
     wideResearch?: boolean;
-    inputMode?: 'normal' | 'wide_research' | 'slides' | 'website' | 'design';
+    inputMode?: 'normal' | 'wide_research' | 'slides' | 'website' | 'design' | 'spreadsheet' | 'video' | 'audio' | 'chat' | 'schedule' | 'visualization' | 'develop_apps' | 'playbook';
     modeConfig?: Record<string, any>;
   } = {}
 ): Promise<CreateSessionResponse> {
@@ -116,7 +116,7 @@ export const chatWithSession = async (
   message: string = '',
   eventId?: string,
   attachments?: Array<{ file_id: string; filename: string }>,
-  inputMode?: 'normal' | 'wide_research' | 'slides' | 'website' | 'design',
+  inputMode?: 'normal' | 'wide_research' | 'slides' | 'website' | 'design' | 'spreadsheet' | 'video' | 'audio' | 'chat' | 'schedule' | 'visualization' | 'develop_apps' | 'playbook',
   modeConfig?: Record<string, any>,
   callbacks?: SSECallbacks<AgentSSEEvent['data']>
 ): Promise<() => void> => {

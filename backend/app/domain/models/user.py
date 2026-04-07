@@ -21,6 +21,20 @@ class User(BaseModel):
     updated_at: datetime = datetime.now(UTC)
     last_login_at: Optional[datetime] = None
     credits: int = 200
+    plan_name: str = "Forge Pro"
+    plan_renewal_date: Optional[datetime] = None
+    free_credits: int = 0
+    monthly_credits: int = 10000
+    monthly_credits_max: int = 10000
+    daily_refresh_credits: int = 100
+    preferred_language: str = "English"
+    appearance: str = "light"
+    receive_product_updates: bool = True
+    email_when_queued_task_starts: bool = True
+    nickname: str = ""
+    occupation: str = ""
+    more_about_you: str = ""
+    custom_instructions: str = ""
     
     @field_validator('fullname')
     @classmethod

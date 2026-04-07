@@ -19,6 +19,20 @@ export interface User {
   updated_at: string;
   last_login_at?: string;
   credits?: number;
+  plan_name?: string;
+  plan_renewal_date?: string | null;
+  free_credits?: number;
+  monthly_credits?: number;
+  monthly_credits_max?: number;
+  daily_refresh_credits?: number;
+  preferred_language?: string;
+  appearance?: string;
+  receive_product_updates?: boolean;
+  email_when_queued_task_starts?: boolean;
+  nickname?: string;
+  occupation?: string;
+  more_about_you?: string;
+  custom_instructions?: string;
 }
 
 /**

@@ -56,6 +56,20 @@ class UserDocument(BaseDocument[User], id_field="user_id", domain_model_class=Us
     updated_at: datetime = datetime.now(timezone.utc)
     last_login_at: Optional[datetime] = None
     credits: int = 200
+    plan_name: str = "Forge Pro"
+    plan_renewal_date: Optional[datetime] = None
+    free_credits: int = 0
+    monthly_credits: int = 10000
+    monthly_credits_max: int = 10000
+    daily_refresh_credits: int = 100
+    preferred_language: str = "English"
+    appearance: str = "light"
+    receive_product_updates: bool = True
+    email_when_queued_task_starts: bool = True
+    nickname: str = ""
+    occupation: str = ""
+    more_about_you: str = ""
+    custom_instructions: str = ""
 
     class Settings:
         name = "users"
@@ -107,7 +121,7 @@ class SessionDocument(BaseDocument[Session], id_field="session_id", domain_model
     mode: str = "auto"
     permissions: str = "standard"
     risk_level: str = "low"
-    model_tier: str = "lite"
+    model_tier: str = "regular"
     wide_research: bool = False
     input_mode: str = "normal"
     mode_config: Dict[str, Any] = Field(default_factory=dict)
@@ -142,4 +156,93 @@ class ClawDocument(BaseDocument[Claw], id_field="claw_id", domain_model_class=Cl
         indexes = [
             "claw_id",
             IndexModel([("user_id", ASCENDING)], unique=True),  # One claw per user
+        ]
+
+
+class UsageLedgerDocument(Document):
+    ledger_id: str
+    user_id: str
+    source_type: str
+    label: str
+    credits_delta: int
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    class Settings:
+        name = "usage_ledger"
+        indexes = [
+            "ledger_id",
+            IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)]),
+        ]
+
+
+class BillingActivityDocument(Document):
+    activity_id: str
+    user_id: str
+    label: str
+    amount: float = 0
+    currency: str = "USD"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    class Settings:
+        name = "billing_activity"
+        indexes = [
+            "activity_id",
+            IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)]),
+        ]
+
+
+class ScheduleDocument(Document):
+    schedule_id: str
+    user_id: str
+    name: str
+    description: str = ""
+    schedule_text: str
+    cron_expression: str
+    next_run: Optional[datetime] = None
+    status: str = "active"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    class Settings:
+        name = "schedules"
+        indexes = [
+            "schedule_id",
+            IndexModel([("user_id", ASCENDING), ("updated_at", DESCENDING)]),
+        ]
+
+
+class ConnectorDocument(Document):
+    connection_id: str
+    user_id: str
+    connector_id: str
+    name: str
+    type: str = "app"
+    auth_token: Optional[str] = None
+    status: str = "connected"
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    connected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    class Settings:
+        name = "connectors"
+        indexes = [
+            "connection_id",
+            IndexModel([("user_id", ASCENDING), ("connector_id", ASCENDING)], unique=True),
+        ]
+
+
+class ReferralDocument(Document):
+    referral_id: str
+    user_id: str
+    referral_code: str
+    invite_link: str
+    credits_earned: int = 0
+    referral_count: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    class Settings:
+        name = "referrals"
+        indexes = [
+            "referral_id",
+            IndexModel([("user_id", ASCENDING)], unique=True),
+            IndexModel([("referral_code", ASCENDING)], unique=True),
         ]

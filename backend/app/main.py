@@ -15,7 +15,17 @@ from app.interfaces.api.routes import router
 from app.interfaces.api.openai_routes import router as openai_router
 from app.infrastructure.logging import setup_logging
 from app.interfaces.errors.exception_handlers import register_exception_handlers
-from app.infrastructure.models.documents import AgentDocument, SessionDocument, UserDocument, ClawDocument
+from app.infrastructure.models.documents import (
+    AgentDocument,
+    SessionDocument,
+    UserDocument,
+    ClawDocument,
+    UsageLedgerDocument,
+    BillingActivityDocument,
+    ScheduleDocument,
+    ConnectorDocument,
+    ReferralDocument,
+)
 from beanie import init_beanie
 
 # Initialize logging system
@@ -38,7 +48,17 @@ async def lifespan(app: FastAPI):
     # Initialize Beanie
     await init_beanie(
         database=get_mongodb().client[settings.mongodb_database],
-        document_models=[AgentDocument, SessionDocument, UserDocument, ClawDocument]
+        document_models=[
+            AgentDocument,
+            SessionDocument,
+            UserDocument,
+            ClawDocument,
+            UsageLedgerDocument,
+            BillingActivityDocument,
+            ScheduleDocument,
+            ConnectorDocument,
+            ReferralDocument,
+        ]
     )
     logger.info("Successfully initialized Beanie")
     

@@ -17,6 +17,7 @@
   <ContextMenu />
   <SearchModal />
   <ConnectIntegrationModal />
+  <ReferralModal />
 </template>
 
 <script setup lang="ts">
@@ -29,4 +30,5 @@ import FilePanel from '@/components/FilePanel.vue';
 import SettingsDialog from '@/components/settings/SettingsDialog.vue';
 import SearchModal from '@/components/SearchModal.vue';
 import ConnectIntegrationModal from '@/components/ConnectIntegrationModal.vue';
+import ReferralModal from '@/components/ReferralModal.vue';
 </script>

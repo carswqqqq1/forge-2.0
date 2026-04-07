@@ -7,6 +7,59 @@ from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
+TIER_MODE_MODELS = {
+    "lite": {
+        "chat": "meta/llama-3.1-8b-instruct",
+        "wide_research": "mistralai/mistral-7b-instruct-v0.3",
+        "slides": "meta/llama-3.1-8b-instruct",
+        "website": "meta/llama-3.1-8b-instruct",
+        "design": "meta/llama-3.1-8b-instruct",
+        "spreadsheet": "meta/llama-3.1-8b-instruct",
+        "video": "mistralai/mistral-7b-instruct-v0.3",
+        "audio": "mistralai/mistral-7b-instruct-v0.3",
+        "schedule": "meta/llama-3.1-8b-instruct",
+        "visualization": "mistralai/mistral-7b-instruct-v0.3",
+        "develop_apps": "meta/llama-3.1-8b-instruct",
+        "playbook": "meta/llama-3.1-8b-instruct",
+        "default": "meta/llama-3.1-8b-instruct",
+    },
+    "regular": {
+        "chat": "meta/llama-3.3-70b-instruct",
+        "wide_research": "mistralai/mixtral-8x7b-instruct-v0.1",
+        "slides": "meta/llama-3.1-70b-instruct",
+        "website": "qwen/qwen2.5-coder-32b-instruct",
+        "design": "meta/llama-3.1-70b-instruct",
+        "spreadsheet": "meta/llama-3.1-70b-instruct",
+        "video": "meta/llama-3.1-70b-instruct",
+        "audio": "mistralai/mistral-7b-instruct-v0.3",
+        "schedule": "meta/llama-3.1-70b-instruct",
+        "visualization": "mistralai/mixtral-8x7b-instruct-v0.1",
+        "develop_apps": "qwen/qwen2.5-coder-32b-instruct",
+        "playbook": "meta/llama-3.1-70b-instruct",
+        "default": "meta/llama-3.3-70b-instruct",
+    },
+    "max": {
+        "chat": "meta/llama-3.1-405b-instruct",
+        "wide_research": "meta/llama-3.1-405b-instruct",
+        "slides": "meta/llama-3.1-405b-instruct",
+        "website": "qwen/qwen2.5-coder-32b-instruct",
+        "design": "meta/llama-3.1-405b-instruct",
+        "spreadsheet": "meta/llama-3.1-405b-instruct",
+        "video": "meta/llama-3.1-405b-instruct",
+        "audio": "meta/llama-3.1-70b-instruct",
+        "schedule": "meta/llama-3.1-405b-instruct",
+        "visualization": "meta/llama-3.1-405b-instruct",
+        "develop_apps": "qwen/qwen2.5-coder-32b-instruct",
+        "playbook": "meta/llama-3.1-405b-instruct",
+        "default": "meta/llama-3.1-405b-instruct",
+    },
+}
+
+
+def get_model(tier: str, mode: str) -> str:
+    tier_map = TIER_MODE_MODELS.get((tier or "regular").lower(), TIER_MODE_MODELS["regular"])
+    return tier_map.get((mode or "chat").lower(), tier_map["default"])
+
 
 def _parse_extra_headers() -> dict | None:
     raw = os.environ.get("EXTRA_HEADERS")
@@ -27,18 +80,19 @@ class Settings(BaseSettings):
     # Model provider configuration
     api_key: str | None = None
     api_base: str | None = None
+    nvidia_api_key: str | None = None
     
     # Model configuration
-    model_tier: str = "lite"  # "lite", "regular" or "max"
-    model_name: str = "meta/llama-3.1-8b-instruct"
+    model_tier: str = "regular"  # "lite", "regular" or "max"
+    model_name: str = "meta/llama-3.3-70b-instruct"
     model_name_lite: str = "meta/llama-3.1-8b-instruct"
-    model_name_regular: str = "openai/gpt-oss-20b"
-    model_name_max: str = "openai/gpt-oss-120b"
+    model_name_regular: str = "meta/llama-3.3-70b-instruct"
+    model_name_max: str = "meta/llama-3.1-405b-instruct"
     model_provider: str = "openai"
     memory_model_name_lite: str = "meta/llama-3.1-8b-instruct"
-    memory_model_name_regular: str = "openai/gpt-oss-20b"
-    memory_model_name_max: str = "openai/gpt-oss-120b"
-    memory_model_name: str = "meta/llama-3.1-8b-instruct"
+    memory_model_name_regular: str = "meta/llama-3.3-70b-instruct"
+    memory_model_name_max: str = "meta/llama-3.1-405b-instruct"
+    memory_model_name: str = "meta/llama-3.3-70b-instruct"
     temperature_lite: float = 0.7
     max_tokens_lite: int = 1600
     temperature: float = 0.7
@@ -147,6 +201,8 @@ def get_settings() -> Settings:
         api_key = os.getenv("API_KEY")
         if api_key:
             os.environ["OPENAI_API_KEY"] = api_key
+    if not os.environ.get("NVIDIA_API_KEY") and os.getenv("NVIDIA_API_KEY"):
+        os.environ["NVIDIA_API_KEY"] = os.getenv("NVIDIA_API_KEY")
     if not os.environ.get("OPENAI_BASE_URL") and os.getenv("API_BASE"):
         os.environ["OPENAI_BASE_URL"] = os.getenv("API_BASE")
     settings = Settings()

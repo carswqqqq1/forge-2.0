@@ -56,10 +56,11 @@
       </div>
 
       <div v-if="!connectBarDismissed" class="flex items-center justify-between gap-3 rounded-full border border-[var(--border-main)] bg-[var(--background-white-main)] px-3 py-2">
-        <div class="flex items-center gap-2 min-w-0">
+        <div class="flex items-center gap-2 min-w-0 text-left cursor-pointer" @click="openSettingsDialog('connectors')">
+          <Puzzle :size="14" class="text-[var(--icon-secondary)] shrink-0" />
           <span class="text-[12px] text-[var(--text-secondary)] whitespace-nowrap">Connect your tools to Forge</span>
           <div class="flex items-center gap-1 overflow-hidden">
-            <button v-for="integration in integrations" :key="integration" class="connect-logo-btn" @click="openConnectModal(integration)">
+            <button v-for="integration in integrations" :key="integration" class="connect-logo-btn" @click.stop="openConnectModal(integration)">
               <IntegrationLogo :name="integration" />
             </button>
           </div>
@@ -76,11 +77,12 @@
 import { ref, watch, computed } from 'vue';
 import SendIcon from './icons/SendIcon.vue';
 import ChatBoxFiles from './ChatBoxFiles.vue';
-import { Plus, Github, Globe, Monitor, Smile, Mic, Terminal, FileText, Search, X } from 'lucide-vue-next';
+import { Plus, Github, Globe, Monitor, Smile, Mic, Terminal, FileText, Search, X, Puzzle } from 'lucide-vue-next';
 import type { FileInfo } from '../api/file';
 import { showInfoToast } from '../utils/toast';
 import { useConnectModal, type IntegrationName } from '../composables/useConnectModal';
 import IntegrationLogo from './IntegrationLogo.vue';
+import { useSettingsDialog } from '../composables/useSettingsDialog';
 
 const hasTextInput = ref(false);
 const isComposing = ref(false);
@@ -88,6 +90,7 @@ const chatBoxFileListRef = ref();
 const textareaRef = ref<HTMLTextAreaElement>();
 const connectBarDismissed = ref(localStorage.getItem('forge-connect-bar-dismissed') === 'true');
 const { openConnectModal } = useConnectModal();
+const { openSettingsDialog } = useSettingsDialog();
 const connectedTools = ref<Record<string, boolean>>({
     Browser: false,
     Terminal: false,

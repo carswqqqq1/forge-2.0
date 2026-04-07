@@ -33,7 +33,7 @@ class SessionSummary(BaseModel):
     mode: str = "auto"
     permissions: str = "standard"
     risk_level: str = "low"
-    model_tier: str = "lite"
+    model_tier: str = "regular"
     wide_research: bool = False
     input_mode: str = "normal"
     mode_config: Dict[str, Any] = Field(default_factory=dict)
@@ -64,7 +64,7 @@ class Session(BaseModel):
     mode: str = "auto"
     permissions: str = "standard"
     risk_level: str = "low"
-    model_tier: str = "lite"
+    model_tier: str = "regular"
     wide_research: bool = False
     input_mode: str = "normal"
     mode_config: Dict[str, Any] = Field(default_factory=dict)

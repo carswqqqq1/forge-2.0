@@ -43,6 +43,11 @@ export function useAuth() {
         role: 'user',
         is_active: true,
         credits: 200,
+        plan_name: 'Forge Pro',
+        free_credits: 0,
+        monthly_credits: 200,
+        monthly_credits_max: 200,
+        daily_refresh_credits: 25,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }

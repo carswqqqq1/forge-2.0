@@ -56,19 +56,21 @@ const showDesignModels = ref(false);
 
 const modePills: Array<{ mode: InputMode; label: string; icon: string }> = [
   { mode: 'wide_research', label: 'Wide Research', icon: '⊕' },
-  { mode: 'slides', label: 'Slides', icon: '📋' },
-  { mode: 'website', label: 'Website', icon: '🌐' },
+  { mode: 'slides', label: 'Create Slides', icon: '📋' },
+  { mode: 'website', label: 'Build Website', icon: '🌐' },
   { mode: 'design', label: 'Design', icon: '✏️' },
 ];
 
 const moreItems = [
-  { icon: '📊', label: 'Spreadsheet', mode: 'normal' as InputMode, prompt: 'Create a spreadsheet for ' },
+  { icon: '📊', label: 'Spreadsheet', mode: 'spreadsheet' as InputMode, prompt: 'Create a spreadsheet for ' },
   { icon: '🔬', label: 'Wide Research', mode: 'wide_research' as InputMode, prompt: 'Conduct deep research on ' },
-  { icon: '📹', label: 'Video', mode: 'normal' as InputMode, prompt: 'Create a video plan for ' },
-  { icon: '🎵', label: 'Audio', mode: 'normal' as InputMode, prompt: 'Create an audio brief for ' },
-  { icon: '💬', label: 'Chat mode', mode: 'normal' as InputMode, prompt: 'Help me think through ' },
-  { icon: '🕐', label: 'Schedule task', mode: 'normal' as InputMode, prompt: 'Schedule a task that ' },
-  { icon: '📖', label: 'Playbook', mode: 'normal' as InputMode, prompt: 'Create a playbook for ' },
+  { icon: '📹', label: 'Video', mode: 'video' as InputMode, prompt: 'Create a video plan for ' },
+  { icon: '🎵', label: 'Audio', mode: 'audio' as InputMode, prompt: 'Create an audio brief for ' },
+  { icon: '💬', label: 'Chat mode', mode: 'chat' as InputMode, prompt: '' },
+  { icon: '📅', label: 'Schedule task', mode: 'schedule' as InputMode, prompt: 'Send me a daily market briefing every morning at 8am' },
+  { icon: '📈', label: 'Visualization', mode: 'visualization' as InputMode, prompt: 'Create a KPI visualization for ' },
+  { icon: '💻', label: 'Develop apps', mode: 'develop_apps' as InputMode, prompt: 'Build an app that ' },
+  { icon: '📖', label: 'Playbook', mode: 'playbook' as InputMode, prompt: 'Create a playbook for ' },
 ];
 
 const selectMore = (mode: InputMode, prompt: string) => {
@@ -94,12 +96,14 @@ const pickDesignModel = (model: DesignModel) => {
   padding: 8px 14px;
   font-size: 13px;
   color: var(--text-secondary);
+  transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
 .mode-pill--active {
   background: #2563eb;
   border-color: #2563eb;
   color: white;
+  transform: scale(1.03);
 }
 
 .mode-pill--secondary {

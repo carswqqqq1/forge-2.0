@@ -102,7 +102,7 @@
       </div>
 
       <div class="mt-auto px-[10px] pb-[10px]">
-        <button class="w-full flex items-center justify-between rounded-[12px] border border-[var(--border-main)] bg-[var(--background-white-main)] px-3 py-2 text-left hover:bg-[var(--fill-tsp-white-light)]" @click="showInfoToast('Referral flow coming soon')">
+        <button class="w-full flex items-center justify-between rounded-[12px] border border-[var(--border-main)] bg-[var(--background-white-main)] px-3 py-2 text-left hover:bg-[var(--fill-tsp-white-light)]" @click="openReferralModal">
           <div class="flex flex-col">
             <span class="text-[12px] font-medium text-[var(--text-primary)]">Share Forge with a friend</span>
             <span class="text-[11px] text-[var(--text-tertiary)]">Get 500 credits each</span>
@@ -157,6 +157,7 @@ import { ListSessionItem } from '../types/response';
 import { showInfoToast } from '../utils/toast';
 import { useSettingsDialog } from '../composables/useSettingsDialog';
 import { useSearchModal } from '../composables/useSearchModal';
+import { useReferralModal } from '../composables/useReferralModal';
 
 interface ProjectItem {
   id: string;
@@ -167,6 +168,7 @@ interface ProjectItem {
 const { isLeftPanelShow, toggleLeftPanel } = useLeftPanel();
 const { openSettingsDialog } = useSettingsDialog();
 const { openSearchModal } = useSearchModal();
+const { openReferralModal } = useReferralModal();
 const route = useRoute();
 const router = useRouter();
 

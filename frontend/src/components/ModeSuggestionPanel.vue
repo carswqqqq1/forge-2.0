@@ -57,6 +57,67 @@
         </button>
       </div>
     </template>
+
+    <template v-else-if="mode === 'spreadsheet'">
+      <div class="flex flex-wrap gap-2">
+        <button v-for="item in spreadsheetSuggestions" :key="item" class="suggestion-chip" @click="$emit('apply-prompt', item)">
+          {{ item }}
+        </button>
+      </div>
+    </template>
+
+    <template v-else-if="mode === 'video'">
+      <div class="flex flex-wrap gap-2">
+        <button v-for="item in videoSuggestions" :key="item" class="suggestion-chip" @click="$emit('apply-prompt', item)">
+          {{ item }}
+        </button>
+      </div>
+    </template>
+
+    <template v-else-if="mode === 'audio'">
+      <div class="flex flex-wrap gap-2">
+        <button v-for="item in audioSuggestions" :key="item" class="suggestion-chip" @click="$emit('apply-prompt', item)">
+          {{ item }}
+        </button>
+      </div>
+    </template>
+
+    <template v-else-if="mode === 'schedule'">
+      <div class="flex justify-end">
+        <button class="outlined-action" @click="$emit('apply-prompt', 'Send me a daily market briefing every morning')">
+          + New schedule
+        </button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <button v-for="item in scheduleSuggestions" :key="item" class="suggestion-chip h-full text-left" @click="$emit('apply-prompt', item)">
+          {{ item }}
+        </button>
+      </div>
+    </template>
+
+    <template v-else-if="mode === 'visualization'">
+      <div class="flex flex-wrap gap-2">
+        <button v-for="item in visualizationSuggestions" :key="item" class="suggestion-chip" @click="$emit('apply-prompt', item)">
+          {{ item }}
+        </button>
+      </div>
+    </template>
+
+    <template v-else-if="mode === 'develop_apps'">
+      <div class="flex flex-wrap gap-2">
+        <button v-for="item in developAppsSuggestions" :key="item" class="suggestion-chip" @click="$emit('apply-prompt', item)">
+          {{ item }}
+        </button>
+      </div>
+    </template>
+
+    <template v-else-if="mode === 'playbook'">
+      <div class="flex flex-wrap gap-2">
+        <button v-for="item in playbookSuggestions" :key="item" class="suggestion-chip" @click="$emit('apply-prompt', item)">
+          {{ item }}
+        </button>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -98,6 +159,63 @@ const designSuggestions = [
   { title: 'Hero Illustration', prompt: 'Create a sleek AI workspace hero illustration', gradient: 'background: linear-gradient(135deg, #111827, #4b5563);' },
   { title: 'App Mockup', prompt: 'Design a premium SaaS dashboard mockup in black and white', gradient: 'background: linear-gradient(135deg, #f8fafc, #d1d5db);' },
   { title: 'Brand Poster', prompt: 'Design a bold brand poster for Forge with editorial typography', gradient: 'background: linear-gradient(135deg, #111111, #ef4444);' },
+];
+
+const spreadsheetSuggestions = [
+  'Create a sales tracker with monthly revenue, expenses, profit columns',
+  'Analyze this CSV and visualize trends as charts',
+  'Build a budget spreadsheet with categories and totals',
+  'Convert this data into a pivot table',
+  'Generate a project timeline with Gantt-style formatting',
+];
+
+const videoSuggestions = [
+  'Create a 60-second product demo video script with scene-by-scene breakdown',
+  'Generate a YouTube intro sequence concept with timestamps',
+  'Write a storyboard for a 30-second ad spot',
+  'Create a video essay outline with talking points',
+  'Generate B-roll shot list for a travel vlog',
+];
+
+const audioSuggestions = [
+  'Write lyrics for an upbeat pop song about entrepreneurship',
+  'Create a podcast intro script with host intro and topic overview',
+  'Generate a 3-minute meditation script with calm narration',
+  'Write a jingle for a marketing campaign',
+  'Create a voiceover script for a product explainer',
+];
+
+const scheduleSuggestions = [
+  'Send me a daily market briefing every morning',
+  'Monitor competitor websites for changes weekly',
+  'Generate weekly performance reports from my data',
+  'Send daily social media post ideas at 9am',
+  'Run a weekly SEO audit on my website',
+  'Send a Monday morning task summary email',
+];
+
+const visualizationSuggestions = [
+  'Create an interactive bar chart of monthly sales data',
+  'Visualize user growth trends over the last 12 months',
+  'Build a dashboard showing KPIs with color-coded metrics',
+  'Create a geographic heatmap of customer locations',
+  'Generate a funnel chart for conversion rates',
+];
+
+const developAppsSuggestions = [
+  'Build a React dashboard with login, sidebar, and data tables',
+  'Create a REST API with authentication and CRUD endpoints',
+  'Build a Chrome extension that summarizes web pages',
+  'Create a mobile-responsive landing page with animations',
+  'Build a CLI tool that processes CSV files',
+];
+
+const playbookSuggestions = [
+  'Create an onboarding playbook for new sales team members',
+  'Build a content creation workflow from idea to published post',
+  'Create a customer support escalation playbook',
+  'Build a lead qualification and follow-up automation',
+  'Create a product launch checklist and execution playbook',
 ];
 
 const gradientFor = (template: string) => {
@@ -143,6 +261,15 @@ const gradientFor = (template: string) => {
 
 .secondary-link {
   padding: 8px 14px;
+  color: var(--text-primary);
+}
+
+.outlined-action {
+  border-radius: 9999px;
+  border: 1px solid var(--border-main);
+  background: white;
+  padding: 8px 14px;
+  font-size: 13px;
   color: var(--text-primary);
 }
 

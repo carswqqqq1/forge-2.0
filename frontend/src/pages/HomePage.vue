@@ -11,10 +11,7 @@
           </div>
 
           <div class="flex items-center gap-2">
-            <span class="hidden sm:flex h-8 px-3 rounded-full border text-sm items-center gap-2 border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]">
-              <Sparkles :size="14" />
-              {{ currentUser?.credits ?? '...' }}
-            </span>
+            <CreditsPopover />
             <button class="hidden sm:flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] text-[var(--text-secondary)]" @click="showInfoToast('No notifications yet')">
               <Bell :size="16" />
             </button>
@@ -97,13 +94,14 @@ import { useRouter } from 'vue-router';
 import ChatBox from '../components/ChatBox.vue';
 import { createSession } from '../api/agent';
 import { showErrorToast, showInfoToast } from '../utils/toast';
-import { PanelLeft, Sparkles, Plus, Bell, X } from 'lucide-vue-next';
+import { PanelLeft, Plus, Bell, X } from 'lucide-vue-next';
 import type { FileInfo } from '../api/file';
 import { useLeftPanel } from '../composables/useLeftPanel';
 import { useFilePanel } from '../composables/useFilePanel';
 import { useAuth } from '../composables/useAuth';
 import UserMenu from '../components/UserMenu.vue';
 import ForgeModelDropdown from '../components/ForgeModelDropdown.vue';
+import CreditsPopover from '../components/CreditsPopover.vue';
 import { useModelTier } from '../composables/useModelTier';
 import InputModeToggleBar from '../components/InputModeToggleBar.vue';
 import ModeSuggestionPanel from '../components/ModeSuggestionPanel.vue';

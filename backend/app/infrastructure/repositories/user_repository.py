@@ -1,5 +1,6 @@
 from typing import List, Optional
 from beanie import WriteRules
+from datetime import datetime, UTC
 from app.domain.models.user import User
 from app.domain.repositories.user_repository import UserRepository
 from app.infrastructure.models.documents import UserDocument
@@ -126,6 +127,6 @@ class MongoUserRepository(UserRepository):
         if not user_doc:
             raise ValueError(f"User not found: {user_id}")
         user_doc.credits = max(0, (user_doc.credits or 0) + credits)
-        user_doc.updated_at = user_doc.updated_at
+        user_doc.updated_at = datetime.now(UTC)
         await user_doc.save()
         return user_doc.to_domain()

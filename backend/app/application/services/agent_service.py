@@ -1,6 +1,7 @@
 from typing import Any, AsyncGenerator, Optional, List
 import logging
 from datetime import datetime
+import uuid
 from app.domain.models.session import Session, SessionSummary
 from app.domain.repositories.session_repository import SessionRepository
 from app.domain.repositories.user_repository import UserRepository
@@ -17,10 +18,11 @@ from app.domain.external.file import FileStorage
 from app.domain.repositories.agent_repository import AgentRepository
 from app.domain.external.task import Task
 from app.domain.models.file import FileInfo
-from app.core.config import get_settings
+from app.core.config import get_settings, get_model
 from app.domain.repositories.mcp_repository import MCPRepository
 from app.domain.models.session import SessionStatus
 from app.application.errors.exceptions import BadRequestError
+from app.infrastructure.models.documents import UsageLedgerDocument
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -57,7 +59,7 @@ class AgentService:
     async def create_session(
         self,
         user_id: str,
-        model_tier: str = "lite",
+        model_tier: str = "regular",
         prompt: str = "",
         max_budget: int = 0,
         mode: str = "auto",
@@ -81,8 +83,8 @@ class AgentService:
             raise BadRequestError(f"This run is estimated at {estimated_cost} credits, which exceeds your budget cap of {resolved_budget}.")
         if (user.credits or 0) < estimated_cost:
             raise BadRequestError(f"You need {estimated_cost} credits for this run but only have {user.credits or 0} left.")
-        await self._charge_credits(user_id, estimated_cost)
-        agent = await self._create_agent(model_tier=model_tier)
+        await self._charge_credits(user_id, estimated_cost, label=f"Session created: {prepared_prompt[:80] or 'New task'}")
+        agent = await self._create_agent(model_tier=model_tier, input_mode=resolved_input_mode)
         memory_brief = await self._build_memory_brief(user_id, prepared_prompt, wide_research)
         session = Session(
             agent_id=agent.id,
@@ -96,7 +98,7 @@ class AgentService:
             mode=(mode or "auto").lower(),
             permissions=(permissions or "standard").lower(),
             risk_level=self._estimate_risk_level(prompt),
-            model_tier=(model_tier or "lite").lower(),
+            model_tier=(model_tier or "regular").lower(),
             wide_research=wide_research,
             input_mode=resolved_input_mode,
             mode_config=resolved_mode_config,
@@ -135,6 +137,22 @@ class AgentService:
             if input_mode == "design":
                 image_model = (mode_config or {}).get("designModel", "Forge Image v1")
                 return f"Generate a design concept with {image_model}.\n\nPrompt: {clean_prompt}".strip()
+            if input_mode == "spreadsheet":
+                return f"Create or analyze a spreadsheet.\n\nRequest: {clean_prompt}".strip()
+            if input_mode == "video":
+                return f"Create a polished video concept, script, or storyboard.\n\nBrief: {clean_prompt}".strip()
+            if input_mode == "audio":
+                return f"Create polished audio content.\n\nBrief: {clean_prompt}".strip()
+            if input_mode == "visualization":
+                return f"Create a data visualization plan and output.\n\nRequest: {clean_prompt}".strip()
+            if input_mode == "develop_apps":
+                return f"Design and scaffold an app build.\n\nRequest: {clean_prompt}".strip()
+            if input_mode == "playbook":
+                return f"Create an operational playbook.\n\nRequest: {clean_prompt}".strip()
+            if input_mode == "schedule":
+                return f"Create a scheduled task definition.\n\nRequest: {clean_prompt}".strip()
+            if input_mode == "chat":
+                return f"Respond in direct chat mode.\n\nUser request: {clean_prompt}".strip()
             return clean_prompt
         return (
             "Use Wide Research mode for this task. Break the topic into 5-8 subtopics, research each subtopic separately, "
@@ -143,7 +161,7 @@ class AgentService:
         ).strip()
 
     def _estimate_cost(self, model_tier: str, message: str, wide_research: bool = False, input_mode: str = "normal") -> int:
-        tier = (model_tier or "lite").lower()
+        tier = (model_tier or "regular").lower()
         base_cost_map = {"lite": 1, "regular": 2, "max": 6}
         base_cost = base_cost_map.get(tier, 2)
         task_cost = min(18, max(0, len((message or "").strip()) // 250))
@@ -152,6 +170,13 @@ class AgentService:
             "slides": 3,
             "website": 5,
             "design": 4,
+            "spreadsheet": 3,
+            "video": 3,
+            "audio": 2,
+            "schedule": 1,
+            "visualization": 3,
+            "develop_apps": 5,
+            "playbook": 2,
         }.get((input_mode or "normal").lower(), 0)
         return base_cost + task_cost + research_cost + mode_cost
 
@@ -165,23 +190,29 @@ class AgentService:
             return "medium"
         return "low"
 
-    async def _charge_credits(self, user_id: str, estimated_cost: int) -> None:
+    async def _charge_credits(self, user_id: str, estimated_cost: int, label: str = "Credits updated") -> None:
         await self._user_repository.add_credits(user_id, -estimated_cost)
+        await UsageLedgerDocument(
+            ledger_id=uuid.uuid4().hex[:16],
+            user_id=user_id,
+            source_type="task",
+            label=label,
+            credits_delta=-estimated_cost,
+        ).insert()
 
-    async def _create_agent(self, model_tier: str = "lite") -> Agent:
+    async def _create_agent(self, model_tier: str = "regular", input_mode: str = "chat") -> Agent:
         logger.info("Creating new agent")
         settings = get_settings()
-        tier = (model_tier or settings.model_tier or "lite").lower()
+        tier = (model_tier or settings.model_tier or "regular").lower()
+        resolved_mode = "chat" if (input_mode or "normal") == "normal" else (input_mode or "chat").lower()
+        model_name = get_model(tier, resolved_mode)
         if tier == "max":
-            model_name = settings.model_name_max
             temperature = settings.temperature_max
             max_tokens = settings.max_tokens_max
         elif tier == "regular":
-            model_name = settings.model_name_regular
             temperature = settings.temperature
             max_tokens = settings.max_tokens
         else:
-            model_name = settings.model_name_lite
             temperature = settings.temperature_lite
             max_tokens = settings.max_tokens_lite
         agent = Agent(

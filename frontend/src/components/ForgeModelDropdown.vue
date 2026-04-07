@@ -1,6 +1,6 @@
 <template>
   <div class="relative">
-    <button class="flex items-center gap-2 h-9 px-3 rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)]" @click="isOpen = !isOpen">
+    <button class="flex items-center gap-2 h-9 px-3 rounded-full border border-[var(--border-btn-main)] bg-[var(--background-white-main)] shadow-[0px_1px_0px_rgba(0,0,0,0.03)]" @click="isOpen = !isOpen">
       <span class="text-sm font-medium text-[var(--text-primary)]">{{ currentTierMeta.shortLabel }}</span>
       <ChevronDown :size="14" class="text-[var(--icon-secondary)]" />
     </button>
@@ -14,6 +14,7 @@
         <div class="flex flex-col gap-1 min-w-0">
           <span class="text-[14px] font-medium text-[var(--text-primary)]">{{ option.title }}</span>
           <span class="text-[13px] text-[var(--text-secondary)]">{{ option.description }}</span>
+          <span class="text-[12px] text-[var(--text-tertiary)]">{{ option.creditLabel }}</span>
         </div>
       </button>
     </div>

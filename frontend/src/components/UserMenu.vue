@@ -1,111 +1,98 @@
 <template>
-    <div class="pointer-events-auto cursor-default">
-        <div class="min-w-max inline-block transition-[transform,opacity,scale] duration-150" tabindex="-1"
-            role="dialog">
-            <div
-                class="flex w-[300px] flex-col bg-[var(--background-menu-white)] rounded-[20px] border-[0.5px] border-[var(--border-dark)] shadow-[0px_8px_32px_0px_var(--shadow-XS)]">
-                <div class="flex gap-2 px-4 pt-5 pb-3 w-full">
-                    <div class="relative flex items-center justify-center font-bold cursor-pointer flex-shrink-0">
-                        <div class="relative flex items-center justify-center font-bold flex-shrink-0 rounded-full overflow-hidden"
-                            style="width: 48px; height: 48px; font-size: 24px; color: rgba(255, 255, 255, 0.9); background-color: rgb(59, 130, 246);">
-                            {{ avatarLetter }}</div>
-                    </div>
-                    <div class="flex overflow-hidden flex-col justify-center">
-                        <div class="flex gap-1 items-center w-full"><span
-                                class="text-[var(--text-primary)] text-base font-semibold leading-[22px] truncate">{{
-                                    currentUser?.fullname || t('Unknown User') }}</span></div><span
-                            class="text-[var(--text-tertiary)] text-[13px] font-normal leading-[18px] truncate">{{
-                                currentUser?.email || t('No email') }}</span>
-                    </div>
-                </div>
-                <div class="px-4 pb-2">
-                    <div class="flex items-center justify-between rounded-2xl border border-[var(--border-main)] bg-[var(--fill-tsp-white-light)] px-3 py-2">
-                        <span class="text-sm font-medium text-[var(--text-secondary)]">Credits</span>
-                        <span class="text-sm font-semibold text-[var(--text-primary)]">{{ currentUser?.credits ?? '...' }}</span>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-3 px-3 pb-3">
-                    <div class="flex flex-col gap-1">
-                        <div class="w-full h-[1px] my-1 bg-[var(--border-main)]"></div>
-                        <div
-                            class="flex gap-3 items-center p-2 rounded-lg cursor-pointer text-[var(--text-primary)] hover:bg-[var(--fill-tsp-white-main)]"
-                            @click="handleAccountClick">
-                            <div class="flex-shrink-0 w-5 h-5">
-                                <User :size="20" />
-                            </div>
-                            <span
-                                class="overflow-hidden flex-1 text-sm font-medium leading-5 whitespace-nowrap text-ellipsis">{{
-                                t('Account') }}</span>
-                        </div>
-                        <div
-                            class="flex gap-3 items-center p-2 rounded-lg cursor-pointer text-[var(--text-primary)] hover:bg-[var(--fill-tsp-white-main)]"
-                            @click="handleSettingsClick">
-                            <div class="flex-shrink-0 w-5 h-5">
-                                <Settings2 :size="20" />
-                            </div>
-                            <span
-                                class="overflow-hidden flex-1 text-sm font-medium leading-5 whitespace-nowrap text-ellipsis">{{
-                                t('Settings') }}</span>
-                        </div>
-                        <div class="w-full h-[1px] my-1 bg-[var(--border-main)]"></div>
-                        <div v-if="authProvider !== 'none'"
-                            class="flex gap-3 items-center p-2 rounded-lg cursor-pointer hover:bg-[var(--fill-tsp-white-main)] text-[var(--function-error)]"
-                            @click="handleLogout">
-                            <div class="flex-shrink-0 w-5 h-5">
-                                <LogOut :size="20" />
-                            </div>
-                            <span
-                                class="overflow-hidden flex-1 text-sm font-medium leading-5 whitespace-nowrap text-ellipsis">{{
-                                t('Logout') }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  <div class="pointer-events-auto">
+    <div class="w-[320px] rounded-[22px] border border-[var(--border-main)] bg-white shadow-[0px_18px_48px_0px_rgba(0,0,0,0.12)] p-3">
+      <div class="flex items-start gap-3 px-2 py-2">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-[#3b82f6] text-lg font-semibold text-white">
+          {{ avatarLetter }}
         </div>
+        <div class="min-w-0 flex-1">
+          <div class="truncate text-[15px] font-semibold text-[var(--text-primary)]">{{ currentUser?.fullname || 'Forge User' }}</div>
+          <div class="truncate text-[13px] text-[var(--text-secondary)]">{{ currentUser?.email || 'No email' }}</div>
+        </div>
+      </div>
+
+      <div class="mt-2 rounded-[18px] border border-[var(--border-main)] bg-[var(--background-gray-main)] p-3">
+        <div class="flex items-center justify-between gap-3">
+          <span class="rounded-full bg-white px-3 py-1 text-[12px] font-medium text-[var(--text-primary)]">{{ currentUser?.plan_name || 'Forge Pro' }}</span>
+          <button class="text-[12px] font-medium text-[var(--text-primary)]" @click="showInfoToast('Credit top-ups are coming soon')">Add credits</button>
+        </div>
+        <button class="mt-3 flex w-full items-center justify-between rounded-[14px] bg-white px-3 py-2 text-left" @click="openSettingsDialog('usage')">
+          <span class="text-sm text-[var(--text-secondary)]">✦ Credits</span>
+          <span class="text-sm font-semibold text-[var(--text-primary)]">{{ currentUser?.credits ?? 0 }} ></span>
+        </button>
+        <button class="mt-2 flex w-full items-center justify-between rounded-[14px] bg-white px-3 py-2 text-left" @click="showInfoToast('Forge Pro upgrades are coming soon')">
+          <span class="text-sm text-[var(--text-primary)]">Explore what's in Forge Pro</span>
+          <ChevronRight :size="14" class="text-[var(--icon-secondary)]" />
+        </button>
+      </div>
+
+      <div class="mt-3 space-y-1">
+        <button class="menu-row" @click="openSettingsDialog('personalization')"><Sparkles :size="16" /> <span>Personalization</span></button>
+        <button class="menu-row" @click="openSettingsDialog('account')"><User :size="16" /> <span>Account</span></button>
+        <button class="menu-row" @click="openSettingsDialog('settings')"><Settings2 :size="16" /> <span>Settings</span></button>
+      </div>
+
+      <div class="my-2 h-px bg-[var(--border-main)]"></div>
+
+      <div class="space-y-1">
+        <button class="menu-row" @click="openExternal('https://forge-2-0-fsvibxs.netlify.app')"><House :size="16" /> <span>Homepage</span><ExternalLink :size="14" class="ms-auto" /></button>
+        <button class="menu-row" @click="showInfoToast('Help center is coming soon')"><LifeBuoy :size="16" /> <span>Get help</span><ExternalLink :size="14" class="ms-auto" /></button>
+        <button class="menu-row" @click="showInfoToast('Docs are coming soon')"><BookOpen :size="16" /> <span>Docs</span><ExternalLink :size="14" class="ms-auto" /></button>
+      </div>
+
+      <div class="my-2 h-px bg-[var(--border-main)]"></div>
+
+      <button v-if="authProvider !== 'none'" class="menu-row text-[#dc2626]" @click="handleLogout">
+        <LogOut :size="16" />
+        <span>Sign out</span>
+      </button>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
 import { useAuth } from '../composables/useAuth';
 import { useSettingsDialog } from '../composables/useSettingsDialog';
 import { getCachedAuthProvider } from '../api/config';
-import { LogOut, User, Settings2 } from 'lucide-vue-next';
+import { showInfoToast } from '../utils/toast';
+import { LogOut, User, Settings2, ExternalLink, ChevronRight, Sparkles, House, LifeBuoy, BookOpen } from 'lucide-vue-next';
 
 const router = useRouter();
-const { t } = useI18n();
 const { currentUser, logout } = useAuth();
 const { openSettingsDialog } = useSettingsDialog();
 const authProvider = ref<string | null>(null);
 
-// Get first letter of user's fullname for avatar display
-const avatarLetter = computed(() => {
-    return currentUser.value?.fullname?.charAt(0)?.toUpperCase() || 'M';
-});
+const avatarLetter = computed(() => currentUser.value?.fullname?.charAt(0)?.toUpperCase() || 'F');
 
-// Handle Account click - open settings dialog with account tab
-const handleAccountClick = () => {
-    openSettingsDialog('account');
-};
-
-// Handle Settings click - open settings dialog with settings tab
-const handleSettingsClick = () => {
-    openSettingsDialog('settings');
-};
-
-// Handle logout action
 const handleLogout = async () => {
-    try {
-        await logout();
-        router.push('/login');
-    } catch (error) {
-        console.error('Logout failed:', error);
-    }
+  await logout();
+  router.push('/login');
+};
+
+const openExternal = (url: string) => {
+  window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 onMounted(async () => {
-    authProvider.value = await getCachedAuthProvider();
+  authProvider.value = await getCachedAuthProvider();
 });
 </script>
+
+<style scoped>
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  text-align: left;
+  color: var(--text-primary);
+}
+
+.menu-row:hover {
+  background: var(--fill-tsp-white-light);
+}
+</style>

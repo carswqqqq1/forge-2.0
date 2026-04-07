@@ -9,7 +9,7 @@ const getInitialTier = (): ForgeModelTier => {
   if (saved === 'lite' || saved === 'regular' || saved === 'max') {
     return saved;
   }
-  return 'lite';
+  return 'regular';
 };
 
 const selectedTier = ref<ForgeModelTier>(getInitialTier());
@@ -22,19 +22,22 @@ const tierMeta = {
   max: {
     key: 'max' as const,
     title: 'Forge Max',
-    description: 'High-performance model for complex tasks.',
+    description: 'Most powerful',
+    creditLabel: '5 credits/step',
     shortLabel: 'Forge Max',
   },
   regular: {
     key: 'regular' as const,
-    title: 'Forge Regular',
-    description: 'Versatile agent capable of most tasks.',
-    shortLabel: 'Forge Regular',
+    title: 'Forge',
+    description: 'Balanced',
+    creditLabel: '2 credits/step',
+    shortLabel: 'Forge',
   },
   lite: {
     key: 'lite' as const,
     title: 'Forge Lite',
-    description: 'A lightweight agent for everyday tasks.',
+    description: 'Fast & efficient',
+    creditLabel: '1 credit/step',
     shortLabel: 'Forge Lite',
   },
 };

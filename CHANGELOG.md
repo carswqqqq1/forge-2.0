@@ -400,6 +400,61 @@ This list focuses on high-impact files and systems changed during the Forge rebu
 - note:
   - local `vue-tsc` is crashing in the toolchain itself on this machine, so frontend type-check could not be used as the verifier for this pass
 
+## 2026-04-06 - Expansion Plan Implementation
+
+- added tier+mode NVIDIA model routing in:
+  - `/Users/carsonweso/Documents/Forge 2.0/backend/app/core/config.py`
+  - `/Users/carsonweso/Documents/Forge 2.0/backend/app/infrastructure/external/nvidia_client.py`
+- changed Forge default tier from `lite` to `regular`
+- added the full expanded `inputMode` system in the frontend for:
+  - `spreadsheet`
+  - `video`
+  - `audio`
+  - `chat`
+  - `schedule`
+  - `visualization`
+  - `develop_apps`
+  - `playbook`
+- expanded the `More` dropdown so the remaining modes are selectable from the shared composer
+- added structured-output backend mode handlers for:
+  - spreadsheet `.xlsx`
+  - video `.md`
+  - audio `.md`
+  - visualization `.html`
+  - develop apps `.zip` + spec
+  - playbook `.md`
+  - schedule creation + saved schedule artifact
+- added new Mongo-backed documents and APIs for:
+  - account summary / usage / billing
+  - schedules CRUD
+  - connectors list / connect / disconnect
+  - referrals / invite link / redeem
+- expanded user/account data with:
+  - plan metadata
+  - credit breakdown fields
+  - language / appearance / notification settings
+  - personalization fields
+- replaced the lightweight settings shell with a larger Forge settings modal including:
+  - Account
+  - Settings
+  - Usage
+  - Billing
+  - Scheduled tasks
+  - Personalization
+  - Connectors
+  - stubs for the remaining Manus-style sections
+- added a header credits popover
+- expanded the avatar menu into a Manus-style account menu
+- added a real share-with-a-friend modal backed by referral APIs
+- wired the sidebar referral banner to open that modal
+- updated the connect-tools banner to open the connectors settings surface
+- expanded connector naming/logo support and upgraded the integration modal to use the new connector APIs
+- verification:
+  - backend `python3 -m compileall app` passed
+  - frontend `npm run build` passed
+- local/live impact:
+  - this changes both local behavior and the codebase that will go live after deploy
+
 ## Maintenance Rule For Future Work
 
 Whenever Forge changes, update this file with:
