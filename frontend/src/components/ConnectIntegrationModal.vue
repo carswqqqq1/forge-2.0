@@ -21,17 +21,14 @@
         </div>
 
         <div v-if="activeIntegration === 'GitHub'" class="mt-5 space-y-3">
-          <label class="block text-sm font-medium text-[var(--text-primary)]">GitHub personal access token</label>
-          <input
-            v-model="githubToken"
-            type="password"
-            placeholder="ghp_..."
-            class="w-full h-11 rounded-[14px] border border-[var(--border-main)] px-4 outline-none" />
+          <div class="rounded-[18px] border border-[var(--border-main)] bg-[var(--background-gray-main)] p-4 text-sm text-[var(--text-secondary)]">
+            Forge will redirect you to GitHub so you can authorize repo, user, and org access securely with OAuth.
+          </div>
         </div>
 
         <div class="mt-5 flex flex-wrap gap-3">
           <button class="rounded-[14px] bg-[var(--Button-primary-black)] text-[var(--text-onblack)] px-4 py-2 text-sm font-medium" @click="handleConnect">
-            Try it out
+            {{ activeIntegration === 'GitHub' ? '+ Connect' : 'Try it out' }}
           </button>
           <button class="rounded-[14px] border border-[var(--border-main)] px-4 py-2 text-sm font-medium" @click="showManage = !showManage">
             Manage
@@ -60,7 +57,6 @@ import IntegrationLogo from './IntegrationLogo.vue';
 import { connectConnector, disconnectConnector } from '../api/connectors';
 
 const { isConnectModalOpen, activeIntegration, closeConnectModal } = useConnectModal();
-const githubToken = ref(localStorage.getItem('forge-github-token') || '');
 const showManage = ref(false);
 
 const connectorMap: Record<string, { id: string; type: string }> = {
@@ -69,8 +65,34 @@ const connectorMap: Record<string, { id: string; type: string }> = {
   Gmail: { id: 'gmail', type: 'app' },
   'Google Calendar': { id: 'google-calendar', type: 'app' },
   'Google Drive': { id: 'google-drive', type: 'app' },
+  'Outlook Mail': { id: 'outlook-mail', type: 'app' },
+  'Outlook Calendar': { id: 'outlook-calendar', type: 'app' },
   GitHub: { id: 'github', type: 'app' },
+  Instagram: { id: 'instagram', type: 'app' },
+  'Meta Ads Manager': { id: 'meta-ads-manager', type: 'app' },
   Slack: { id: 'slack', type: 'app' },
+  Zapier: { id: 'zapier', type: 'app' },
+  Asana: { id: 'asana', type: 'app' },
+  'monday.com': { id: 'monday', type: 'app' },
+  Make: { id: 'make', type: 'app' },
+  Linear: { id: 'linear', type: 'app' },
+  Atlassian: { id: 'atlassian', type: 'app' },
+  ClickUp: { id: 'clickup', type: 'app' },
+  Supabase: { id: 'supabase', type: 'app' },
+  Vercel: { id: 'vercel', type: 'app' },
+  Neon: { id: 'neon', type: 'app' },
+  'Prisma Postgres': { id: 'prisma-postgres', type: 'app' },
+  Sentry: { id: 'sentry', type: 'app' },
+  'Hugging Face': { id: 'hugging-face', type: 'app' },
+  HubSpot: { id: 'hubspot', type: 'app' },
+  Intercom: { id: 'intercom', type: 'app' },
+  Stripe: { id: 'stripe', type: 'app' },
+  'PayPal for Business': { id: 'paypal-business', type: 'app' },
+  RevenueCat: { id: 'revenuecat', type: 'app' },
+  Close: { id: 'close', type: 'app' },
+  Xero: { id: 'xero', type: 'app' },
+  Airtable: { id: 'airtable', type: 'app' },
+  'Google Drive File Picker': { id: 'google-drive-file-picker', type: 'app' },
   Database: { id: 'custom-api', type: 'custom_api' },
   Browser: { id: 'my-browser', type: 'app' },
   'Custom API': { id: 'custom-api', type: 'custom_api' },
@@ -88,12 +110,11 @@ const description = computed(() => {
 });
 
 const handleConnect = async () => {
-  const payload = activeIntegration.value === 'GitHub'
-    ? { auth_token: githubToken.value.trim(), metadata: { label: activeIntegration.value }, type: connectorType.value }
-    : { metadata: { label: activeIntegration.value }, type: connectorType.value };
-  await connectConnector(connectorId.value, payload);
-  if (activeIntegration.value === 'GitHub') {
-    localStorage.setItem('forge-github-token', githubToken.value.trim());
+  const payload = { metadata: { label: activeIntegration.value }, type: connectorType.value };
+  const result = await connectConnector(connectorId.value, payload);
+  if (result.oauth_url) {
+    window.location.href = result.oauth_url;
+    return;
   }
   showSuccessToast(`Successfully connected ${activeIntegration.value}`);
   closeConnectModal();

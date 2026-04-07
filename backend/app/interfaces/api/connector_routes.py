@@ -1,15 +1,24 @@
 from datetime import UTC, datetime
+import secrets
 import uuid
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+from app.core.config import get_settings
 from app.domain.models.user import User
+from app.infrastructure.external.cache import get_cache
 from app.infrastructure.models.documents import ConnectorDocument
 from app.interfaces.dependencies import get_current_user
 from app.interfaces.schemas.base import APIResponse
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
+
+GITHUB_SCOPES = "repo user read:org"
+OAUTH_STATE_TTL_SECONDS = 600
 
 CONNECTOR_CATALOG = [
     {"id": "my-browser", "name": "My Browser", "description": "Live browser context for Forge runs.", "type": "app"},
@@ -49,6 +58,13 @@ CONNECTOR_CATALOG = [
     {"id": "custom-mcp", "name": "Custom MCP", "description": "Connect a custom MCP server.", "type": "custom_mcp"},
 ]
 
+NON_INTERACTIVE_CONNECTORS = {"my-browser", "custom-api", "custom-mcp"}
+MOCK_OAUTH_CONNECTORS = {
+    item["id"]
+    for item in CONNECTOR_CATALOG
+    if item["id"] not in NON_INTERACTIVE_CONNECTORS and item["id"] != "github"
+}
+
 
 class ConnectorConnectRequest(BaseModel):
     auth_token: str | None = None
@@ -64,68 +80,221 @@ class ConnectorResponse(BaseModel):
     status: str
     connected_at: datetime | None = None
     metadata: dict = Field(default_factory=dict)
+    oauth_url: str | None = None
+
+
+def _catalog_item(connector_id: str) -> dict:
+    catalog_item = next((item for item in CONNECTOR_CATALOG if item["id"] == connector_id), None)
+    if not catalog_item:
+        raise HTTPException(status_code=404, detail="Connector not found")
+    return catalog_item
+
+
+async def _upsert_connector(
+    user_id: str,
+    connector_id: str,
+    *,
+    auth_token: str | None = None,
+    metadata: dict | None = None,
+    type_override: str | None = None,
+    status: str = "connected",
+) -> ConnectorDocument:
+    catalog_item = _catalog_item(connector_id)
+    doc = await ConnectorDocument.find_one(ConnectorDocument.user_id == user_id, ConnectorDocument.connector_id == connector_id)
+    if not doc:
+        doc = ConnectorDocument(
+            connection_id=uuid.uuid4().hex[:16],
+            user_id=user_id,
+            connector_id=connector_id,
+            name=catalog_item["name"],
+            type=type_override or catalog_item["type"],
+            auth_token=auth_token,
+            metadata=metadata or {},
+            status=status,
+        )
+        await doc.insert()
+    else:
+        doc.type = type_override or doc.type or catalog_item["type"]
+        doc.auth_token = auth_token if auth_token is not None else doc.auth_token
+        doc.metadata = metadata or doc.metadata
+        doc.status = status
+        doc.connected_at = datetime.now(UTC)
+        await doc.save()
+    return doc
+
+
+def _to_response(connector_id: str, *, doc: ConnectorDocument | None = None, oauth_url: str | None = None) -> ConnectorResponse:
+    catalog_item = _catalog_item(connector_id)
+    return ConnectorResponse(
+        connector_id=connector_id,
+        name=catalog_item["name"],
+        description=catalog_item["description"],
+        type=(doc.type if doc else catalog_item["type"]),
+        status=(doc.status if doc else "disconnected"),
+        connected_at=(doc.connected_at if doc else None),
+        metadata=(doc.metadata if doc else {}),
+        oauth_url=oauth_url,
+    )
+
+
+def _build_callback_url(request: Request, connector_id: str) -> str:
+    return f"{str(request.base_url).rstrip('/')}/api/v1/connectors/{connector_id}/callback"
+
+
+def _build_frontend_redirect(origin: str | None, connector_id: str, success: bool, reason: str | None = None) -> str:
+    settings = get_settings()
+    base = (origin or settings.frontend_url or "http://localhost:5173").rstrip("/")
+    query = {"connected": connector_id} if success else {"connector_error": connector_id}
+    if reason:
+        query["reason"] = reason
+    return f"{base}/chat?{urlencode(query)}"
 
 
 @router.get("", response_model=APIResponse[list[ConnectorResponse]])
 async def list_connectors(current_user: User = Depends(get_current_user)) -> APIResponse[list[ConnectorResponse]]:
     connected = await ConnectorDocument.find(ConnectorDocument.user_id == current_user.id).to_list()
     connected_by_id = {item.connector_id: item for item in connected}
-    items: list[ConnectorResponse] = []
-    for connector in CONNECTOR_CATALOG:
-        match = connected_by_id.get(connector["id"])
-        items.append(
-            ConnectorResponse(
-                connector_id=connector["id"],
-                name=connector["name"],
-                description=connector["description"],
-                type=connector["type"],
-                status=match.status if match else "disconnected",
-                connected_at=match.connected_at if match else None,
-                metadata=match.metadata if match else {},
-            )
-        )
-    return APIResponse.success(items)
+    return APIResponse.success([_to_response(item["id"], doc=connected_by_id.get(item["id"])) for item in CONNECTOR_CATALOG])
 
 
 @router.post("/{connector_id}/connect", response_model=APIResponse[ConnectorResponse])
 async def connect_connector(
     connector_id: str,
-    request: ConnectorConnectRequest,
+    request_body: ConnectorConnectRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
 ) -> APIResponse[ConnectorResponse]:
-    catalog_item = next((item for item in CONNECTOR_CATALOG if item["id"] == connector_id), None)
-    if not catalog_item:
-        raise HTTPException(status_code=404, detail="Connector not found")
-    doc = await ConnectorDocument.find_one(ConnectorDocument.user_id == current_user.id, ConnectorDocument.connector_id == connector_id)
-    if not doc:
-        doc = ConnectorDocument(
-            connection_id=uuid.uuid4().hex[:16],
-            user_id=current_user.id,
-            connector_id=connector_id,
-            name=catalog_item["name"],
-            type=request.type,
-            auth_token=request.auth_token,
-            metadata=request.metadata,
-            status="connected",
+    catalog_item = _catalog_item(connector_id)
+    settings = get_settings()
+
+    if connector_id == "github":
+        if not settings.github_client_id or not settings.github_client_secret:
+            raise HTTPException(status_code=400, detail="GitHub OAuth is not configured on this Forge instance")
+        state = secrets.token_urlsafe(24)
+        await get_cache().set(
+            f"connector_oauth_state:{state}",
+            {
+                "user_id": current_user.id,
+                "connector_id": connector_id,
+                "frontend_origin": request.headers.get("origin") or settings.frontend_url,
+                "redirect_uri": _build_callback_url(request, connector_id),
+            },
+            ttl=OAUTH_STATE_TTL_SECONDS,
         )
-        await doc.insert()
-    else:
-        doc.auth_token = request.auth_token
-        doc.metadata = request.metadata
-        doc.status = "connected"
-        doc.connected_at = datetime.now(UTC)
-        await doc.save()
-    return APIResponse.success(
-        ConnectorResponse(
-            connector_id=connector_id,
-            name=catalog_item["name"],
-            description=catalog_item["description"],
-            type=doc.type,
-            status=doc.status,
-            connected_at=doc.connected_at,
-            metadata=doc.metadata,
+        oauth_url = (
+            "https://github.com/login/oauth/authorize?"
+            + urlencode(
+                {
+                    "client_id": settings.github_client_id,
+                    "redirect_uri": _build_callback_url(request, connector_id),
+                    "scope": GITHUB_SCOPES,
+                    "state": state,
+                }
+            )
         )
+        return APIResponse.success(_to_response(connector_id, oauth_url=oauth_url))
+
+    if connector_id in MOCK_OAUTH_CONNECTORS:
+        state = secrets.token_urlsafe(24)
+        await get_cache().set(
+            f"connector_oauth_state:{state}",
+            {
+                "user_id": current_user.id,
+                "connector_id": connector_id,
+                "frontend_origin": request.headers.get("origin") or settings.frontend_url,
+                "redirect_uri": _build_callback_url(request, connector_id),
+            },
+            ttl=OAUTH_STATE_TTL_SECONDS,
+        )
+        oauth_url = f"{_build_callback_url(request, connector_id)}?{urlencode({'state': state, 'code': f'mock_{connector_id}'})}"
+        return APIResponse.success(_to_response(connector_id, oauth_url=oauth_url))
+
+    metadata = {**request_body.metadata}
+    doc = await _upsert_connector(
+        current_user.id,
+        connector_id,
+        auth_token=request_body.auth_token,
+        metadata=metadata,
+        type_override=request_body.type or catalog_item["type"],
     )
+    return APIResponse.success(_to_response(connector_id, doc=doc))
+
+
+@router.get("/{connector_id}/callback")
+async def oauth_callback(
+    connector_id: str,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+) -> RedirectResponse:
+    settings = get_settings()
+    if not state:
+        return RedirectResponse(_build_frontend_redirect(settings.frontend_url, connector_id, False, "missing_state"))
+
+    cached_state = await get_cache().get(f"connector_oauth_state:{state}")
+    await get_cache().delete(f"connector_oauth_state:{state}")
+    if not cached_state:
+        return RedirectResponse(_build_frontend_redirect(settings.frontend_url, connector_id, False, "invalid_state"))
+
+    frontend_redirect_base = cached_state.get("frontend_origin")
+    user_id = cached_state.get("user_id")
+    cached_connector_id = cached_state.get("connector_id")
+    redirect_uri = cached_state.get("redirect_uri")
+    if not user_id or cached_connector_id != connector_id:
+        return RedirectResponse(_build_frontend_redirect(frontend_redirect_base, connector_id, False, "state_mismatch"))
+    if error:
+        return RedirectResponse(_build_frontend_redirect(frontend_redirect_base, connector_id, False, error))
+
+    if connector_id != "github":
+        doc = await _upsert_connector(
+            user_id,
+            connector_id,
+            metadata={"connected_via": "mock_oauth_callback"},
+        )
+        return RedirectResponse(_build_frontend_redirect(frontend_redirect_base, connector_id, True))
+
+    if not code:
+        return RedirectResponse(_build_frontend_redirect(frontend_redirect_base, connector_id, False, "missing_code"))
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        token_response = await client.post(
+            "https://github.com/login/oauth/access_token",
+            headers={"Accept": "application/json"},
+            data={
+                "client_id": settings.github_client_id,
+                "client_secret": settings.github_client_secret,
+                "code": code,
+                "redirect_uri": redirect_uri,
+            },
+        )
+        token_payload = token_response.json()
+        access_token = token_payload.get("access_token")
+        if not access_token:
+            return RedirectResponse(_build_frontend_redirect(frontend_redirect_base, connector_id, False, "token_exchange_failed"))
+
+        user_response = await client.get(
+            "https://api.github.com/user",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {access_token}",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        user_payload = user_response.json() if user_response.status_code < 400 else {}
+
+    await _upsert_connector(
+        user_id,
+        "github",
+        auth_token=access_token,
+        metadata={
+            "connected_via": "oauth",
+            "login": user_payload.get("login"),
+            "avatar_url": user_payload.get("avatar_url"),
+            "html_url": user_payload.get("html_url"),
+            "scopes": GITHUB_SCOPES,
+        },
+    )
+    return RedirectResponse(_build_frontend_redirect(frontend_redirect_base, "github", True))
 
 
 @router.delete("/{connector_id}", response_model=APIResponse[dict])

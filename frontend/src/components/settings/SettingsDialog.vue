@@ -222,7 +222,7 @@
                 </div>
                 <input v-model="connectorSearch" class="mt-4 h-11 w-full rounded-[14px] border border-[var(--border-main)] px-4" placeholder="Search connectors..." />
                 <div v-if="marketTab === 'apps'" class="mt-4 grid gap-3 md:grid-cols-2">
-                  <button v-for="connector in filteredConnectors" :key="connector.connector_id" class="connector-card" @click="openConnectorModal(connectorLogoName(connector.name))">
+                  <button v-for="connector in filteredConnectors" :key="connector.connector_id" class="connector-card" @click="openConnectorModal(connector.name as IntegrationName)">
                     <div class="flex items-center gap-3">
                       <IntegrationLogo :name="connectorLogoName(connector.name)" />
                       <div class="text-left">
@@ -386,13 +386,43 @@ const filteredConnectors = computed(() => {
 
 const connectorLogoName = (name: string): IntegrationName => {
   const mapping: Record<string, IntegrationName> = {
-    GitHub: 'GitHub',
+    'My Browser': 'My Browser',
+    Notion: 'Notion',
     Gmail: 'Gmail',
     'Google Calendar': 'Google Calendar',
+    'Google Drive': 'Google Drive',
+    'Outlook Mail': 'Outlook Mail',
+    'Outlook Calendar': 'Outlook Calendar',
+    GitHub: 'GitHub',
+    Instagram: 'Instagram',
+    'Meta Ads Manager': 'Meta Ads Manager',
     Slack: 'Slack',
-    Notion: 'Notion',
+    Zapier: 'Zapier',
+    Asana: 'Asana',
+    'monday.com': 'monday.com',
+    Make: 'Make',
+    Linear: 'Linear',
+    Atlassian: 'Atlassian',
+    ClickUp: 'ClickUp',
+    Supabase: 'Supabase',
+    Vercel: 'Vercel',
+    Neon: 'Neon',
+    'Prisma Postgres': 'Prisma Postgres',
+    Sentry: 'Sentry',
+    'Hugging Face': 'Hugging Face',
+    HubSpot: 'HubSpot',
+    Intercom: 'Intercom',
+    Stripe: 'Stripe',
+    'PayPal for Business': 'PayPal for Business',
+    RevenueCat: 'RevenueCat',
+    Close: 'Close',
+    Xero: 'Xero',
+    Airtable: 'Airtable',
+    'Google Drive File Picker': 'Google Drive File Picker',
     Browser: 'Browser',
     Database: 'Database',
+    'Custom API': 'Custom API',
+    'Custom MCP': 'Custom MCP',
   };
   return mapping[name] || 'Database';
 };

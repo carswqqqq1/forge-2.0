@@ -193,7 +193,12 @@ What they do:
 
 - Added branded connector icon row
 - Added connection modal flow for integrations
-- GitHub modal supports token-style entry behavior for now
+- GitHub connector now uses a real OAuth flow:
+  - Forge requests a GitHub authorize URL from the backend
+  - GitHub redirects back to Forge's backend callback
+  - the backend verifies OAuth state, exchanges the code for an access token, stores it in Mongo, and redirects the browser back into Forge
+  - the frontend shows a success toast and connected state after redirect
+- OAuth-template mock callback flows were added for the rest of the connector marketplace so the UI can follow the same connect -> redirect -> callback pattern while those integrations remain simulated
 - Other integrations currently use connect/coming-soon patterns
 
 Included visual connector support for:

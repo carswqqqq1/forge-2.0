@@ -8,6 +8,7 @@ export interface ConnectorItem {
   status: string;
   connected_at?: string | null;
   metadata: Record<string, any>;
+  oauth_url?: string | null;
 }
 
 export async function listConnectors(): Promise<ConnectorItem[]> {

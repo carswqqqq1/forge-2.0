@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 TIER_MODE_MODELS = {
     "lite": {
         "chat": "meta/llama-3.1-8b-instruct",
-        "wide_research": "mistralai/mistral-7b-instruct-v0.3",
+        "wide_research": "meta/llama-3.1-8b-instruct",
         "slides": "meta/llama-3.1-8b-instruct",
         "website": "meta/llama-3.1-8b-instruct",
         "design": "meta/llama-3.1-8b-instruct",
@@ -25,7 +25,7 @@ TIER_MODE_MODELS = {
     },
     "regular": {
         "chat": "meta/llama-3.3-70b-instruct",
-        "wide_research": "mistralai/mixtral-8x7b-instruct-v0.1",
+        "wide_research": "meta/llama-3.3-70b-instruct",
         "slides": "meta/llama-3.1-70b-instruct",
         "website": "qwen/qwen2.5-coder-32b-instruct",
         "design": "meta/llama-3.1-70b-instruct",
@@ -40,7 +40,7 @@ TIER_MODE_MODELS = {
     },
     "max": {
         "chat": "meta/llama-3.1-405b-instruct",
-        "wide_research": "meta/llama-3.1-405b-instruct",
+        "wide_research": "meta/llama-3.3-70b-instruct",
         "slides": "meta/llama-3.1-405b-instruct",
         "website": "qwen/qwen2.5-coder-32b-instruct",
         "design": "meta/llama-3.1-405b-instruct",
@@ -141,6 +141,9 @@ class Settings(BaseSettings):
     auth_provider: str = "password"  # "password", "none", "local"
     show_github_button: bool = False
     github_repository_url: str = ""
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
+    frontend_url: str = "http://localhost:5173"
     password_salt: str | None = None
     password_hash_rounds: int = 10
     password_hash_algorithm: str = "pbkdf2_sha256"
