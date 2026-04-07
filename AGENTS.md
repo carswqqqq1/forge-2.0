@@ -20,6 +20,19 @@ Infrastructure: **MongoDB 7.0**, **Redis 7.0**, **Docker** (sandbox & Claw orche
 
 ---
 
+## Forge Change Tracking
+
+This repo now uses a canonical change record:
+
+- `/Users/carsonweso/Documents/Forge 2.0/CHANGELOG.md`
+
+Rule for all future agents:
+- update `CHANGELOG.md` after every completed implementation, fix, deploy, or meaningful product/runtime change
+- include what changed, why it changed, and whether it affected local only or live too
+- if a deploy URL, tunnel URL, or hosting detail changed, record it there
+
+---
+
 ## Directory Structure
 
 ```

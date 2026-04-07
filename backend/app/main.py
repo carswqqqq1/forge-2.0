@@ -1,8 +1,11 @@
 from fastapi import FastAPI
+from fastapi import Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 import asyncio
+import os
 
 from app.core.config import get_settings
 from app.infrastructure.storage.mongodb import get_mongodb
@@ -67,11 +70,43 @@ app = FastAPI(title="Forge", lifespan=lifespan)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=list({
+        "http://localhost:5173",
+        "http://localhost:3000",
+        os.environ.get("FRONTEND_URL", "http://localhost:5173"),
+    }),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def limit_chat_request_size(request: Request, call_next):
+    chat_path = request.url.path.startswith("/api/v1/sessions/") and request.url.path.endswith("/chat")
+    if not chat_path:
+        return await call_next(request)
+
+    max_size = settings.max_request_body_size_bytes
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > max_size:
+                return JSONResponse(
+                    status_code=413,
+                    content={"code": 413, "msg": "Request body too large", "data": None},
+                )
+        except ValueError:
+            pass
+
+    body = await request.body()
+    if len(body) > max_size:
+        return JSONResponse(
+            status_code=413,
+            content={"code": 413, "msg": "Request body too large", "data": None},
+        )
+
+    return await call_next(request)
 
 # Register exception handlers
 register_exception_handlers(app)

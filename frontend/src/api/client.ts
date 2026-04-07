@@ -57,18 +57,29 @@ apiClient.interceptors.request.use(
 
 // Track if we're currently refreshing token to prevent multiple concurrent requests
 let isRefreshing = false;
-let failedQueue: any[] = [];
+let refreshSubscribers: Array<(token: string) => void> = [];
+let refreshFailureSubscribers: Array<(error: Error) => void> = [];
 
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach(({ resolve, reject }) => {
-    if (error) {
-      reject(error);
-    } else {
-      resolve(token);
-    }
-  });
-  
-  failedQueue = [];
+const subscribeTokenRefresh = (
+  callback: (token: string) => void,
+  onError?: (error: Error) => void
+) => {
+  refreshSubscribers.push(callback);
+  if (onError) {
+    refreshFailureSubscribers.push(onError);
+  }
+};
+
+const onRefreshed = (token: string) => {
+  refreshSubscribers.forEach((callback) => callback(token));
+  refreshSubscribers = [];
+  refreshFailureSubscribers = [];
+};
+
+const onRefreshFailed = (error: Error) => {
+  refreshFailureSubscribers.forEach((callback) => callback(error));
+  refreshSubscribers = [];
+  refreshFailureSubscribers = [];
 };
 
 /**
@@ -92,9 +103,8 @@ const redirectToLogin = () => {
  */
 const refreshAuthToken = async (): Promise<string | null> => {
   if (isRefreshing) {
-    // If already refreshing, queue this request
     return new Promise((resolve, reject) => {
-      failedQueue.push({ resolve, reject });
+      subscribeTokenRefresh(resolve, reject);
     });
   }
 
@@ -127,8 +137,7 @@ const refreshAuthToken = async (): Promise<string | null> => {
       // Update default headers
       apiClient.defaults.headers.Authorization = `Bearer ${newAccessToken}`;
       
-      // Process queued requests
-      processQueue(null, newAccessToken);
+      onRefreshed(newAccessToken);
       
       return newAccessToken;
     } else {
@@ -139,7 +148,7 @@ const refreshAuthToken = async (): Promise<string | null> => {
     clearStoredTokens();
     delete apiClient.defaults.headers.Authorization;
     
-    processQueue(refreshError, null);
+    onRefreshFailed(refreshError as Error);
     
     // Emit logout event
     window.dispatchEvent(new CustomEvent('auth:logout'));

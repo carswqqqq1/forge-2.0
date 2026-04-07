@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, HTTPException
 from sse_starlette.sse import EventSourceResponse
 from typing import AsyncGenerator, List, Optional
 from sse_starlette.event import ServerSentEvent
@@ -204,6 +204,9 @@ async def chat(
     current_user: User = Depends(get_current_user),
     agent_service: AgentService = Depends(get_agent_service)
 ) -> EventSourceResponse:
+    if request.message and len(request.message) > 50000:
+        raise HTTPException(status_code=400, detail="Message too long")
+
     async def event_generator() -> AsyncGenerator[ServerSentEvent, None]:
         async for event in agent_service.chat(
             session_id=session_id,
@@ -413,8 +416,15 @@ async def share_session(
 @router.get("/{session_id}/share/files")
 async def get_shared_session_files(
     session_id: str,
+    current_user: Optional[User] = Depends(get_optional_current_user),
     agent_service: AgentService = Depends(get_agent_service)
 ) -> APIResponse[List[FileInfo]]:
+    session = None
+    if current_user:
+        session = await agent_service.get_session(session_id, current_user.id)
+    is_shared = await agent_service.is_session_shared(session_id)
+    if not session and not is_shared:
+        raise UnauthorizedError("You do not have access to these shared files")
     files = await agent_service.get_shared_session_files(session_id)
     for file in files:
         await get_file_service().enrich_with_file_url(file)

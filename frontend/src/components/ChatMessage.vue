@@ -142,14 +142,18 @@ const { relativeTime } = useRelativeTime();
 
 const renderer = new marked.Renderer();
 renderer.link = ({ href, title, text }: { href: string; title?: string | null; text: string }) => {
+  const safeHref = typeof href === 'string' && href.trim() ? href : '#';
   const titleAttr = title ? ` title="${title}"` : '';
-  return `<a href="${href}" target="_blank" rel="noopener noreferrer"${titleAttr}>${text}</a>`;
+  return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer"${titleAttr}>${text}</a>`;
 };
 
 const renderMarkdown = (text: string) => {
   if (typeof text !== 'string') return '';
   const html = marked(text, { renderer }) as string;
-  return DOMPurify.sanitize(html, { ADD_ATTR: ['target'] });
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'a', 'blockquote'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+  });
 };
 </script>
 

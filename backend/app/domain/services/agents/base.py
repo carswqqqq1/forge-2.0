@@ -108,9 +108,22 @@ class BaseAgent(ABC):
     async def invoke_tool(self, tool: Tool, tool_call: ToolCall) -> ToolMessage:
         """Invoke specified tool, with retry mechanism."""
         retries = 0
+        settings = get_settings()
+        last_error = "Tool execution failed"
         while retries <= self.max_retries:
             try:
-                return await tool.ainvoke(tool_call)
+                return await asyncio.wait_for(
+                    tool.ainvoke(tool_call),
+                    timeout=settings.tool_call_timeout_seconds,
+                )
+            except asyncio.TimeoutError:
+                last_error = f"Tool timed out after {settings.tool_call_timeout_seconds:.0f} seconds"
+                retries += 1
+                if retries <= self.max_retries:
+                    await asyncio.sleep(self.retry_interval)
+                else:
+                    logger.exception(f"Tool execution timed out, {tool_call['name']}, {tool_call['args']}")
+                    break
             except Exception as e:
                 last_error = str(e)
                 retries += 1

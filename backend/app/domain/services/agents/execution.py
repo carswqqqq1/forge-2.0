@@ -1,4 +1,5 @@
 from typing import AsyncGenerator, Optional, List
+import asyncio
 from app.domain.models.plan import Plan, Step, ExecutionStatus
 from app.domain.models.file import FileInfo
 from app.domain.models.message import Message
@@ -18,6 +19,7 @@ from app.domain.models.event import (
     WaitEvent,
 )
 from app.domain.services.tools.base import BaseToolkit
+from app.core.config import get_settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,17 @@ class ExecutionAgent(BaseAgent):
             tools=tools,
             memory_brief=memory_brief,
         )
+
+    async def _stream_with_timeout(self, stream: AsyncGenerator[BaseEvent, None]) -> AsyncGenerator[BaseEvent, None]:
+        timeout_seconds = get_settings().tool_call_timeout_seconds
+        while True:
+            try:
+                event = await asyncio.wait_for(anext(stream), timeout=timeout_seconds)
+            except StopAsyncIteration:
+                break
+            except asyncio.TimeoutError:
+                raise TimeoutError(f"Step execution timed out after {timeout_seconds:.0f} seconds")
+            yield event
     
     async def execute_step(self, plan: Plan, step: Step, message: Message) -> AsyncGenerator[BaseEvent, None]:
         message = EXECUTION_PROMPT.format(
@@ -55,7 +68,7 @@ class ExecutionAgent(BaseAgent):
         )
         step.status = ExecutionStatus.RUNNING
         yield StepEvent(status=StepStatus.STARTED, step=step)
-        async for event in self.execute(message):
+        async for event in self._stream_with_timeout(self.execute(message)):
             if isinstance(event, ErrorEvent):
                 step.status = ExecutionStatus.FAILED
                 step.error = event.error
@@ -85,7 +98,7 @@ class ExecutionAgent(BaseAgent):
     async def summarize(self) -> AsyncGenerator[BaseEvent, None]:
         message = SUMMARIZE_PROMPT
         try:
-            async for event in self.execute(message):
+            async for event in self._stream_with_timeout(self.execute(message)):
                 if isinstance(event, MessageEvent):
                     try:
                         logger.debug(f"Execution agent summary: {event.message}")

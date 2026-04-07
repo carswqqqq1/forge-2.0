@@ -30,6 +30,34 @@ class PlaywrightBrowser:
             kwargs["default_headers"] = self.settings.extra_headers
         self._model = init_chat_model(**kwargs)
         self.cdp_url = cdp_url
+        self._operation_timeout_seconds = 15.0
+
+    async def _safe_evaluate(self, script: str, *args, default=None):
+        """Run page.evaluate with a hard timeout so browser jobs cannot hang forever."""
+        await self._ensure_page()
+        try:
+            return await asyncio.wait_for(
+                self.page.evaluate(script, *args),
+                timeout=self._operation_timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Browser evaluate timed out after %.1fs", self._operation_timeout_seconds)
+            return default
+        except Exception as exc:
+            logger.warning("Browser evaluate failed: %s", exc)
+            return default
+
+    async def _safe_goto(self, page: Page, url: str, timeout_ms: int = 15000) -> None:
+        """Navigate with both Playwright and asyncio timeouts."""
+        try:
+            await asyncio.wait_for(
+                page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded"),
+                timeout=self._operation_timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Navigation timeout for %s after %.1fs", url, self._operation_timeout_seconds)
+        except Exception as exc:
+            logger.warning("Failed to navigate to %s: %s", url, exc)
 
     async def _clear_page_storage(self, page: Page) -> None:
         """Best-effort cleanup of per-origin browser data before closing a page."""
@@ -37,7 +65,8 @@ class PlaywrightBrowser:
             page_url = page.url or ""
             if not page_url.startswith(("http://", "https://")):
                 return
-            await page.evaluate(
+            await asyncio.wait_for(
+                page.evaluate(
                 """async () => {
                     try { localStorage.clear(); } catch (e) {}
                     try { sessionStorage.clear(); } catch (e) {}
@@ -68,6 +97,8 @@ class PlaywrightBrowser:
                         }
                     } catch (e) {}
                 }"""
+                ),
+                timeout=self._operation_timeout_seconds,
             )
         except Exception as exc:
             logger.debug("Skipping page storage cleanup for %s: %s", getattr(page, "url", "unknown"), exc)
@@ -108,7 +139,7 @@ class PlaywrightBrowser:
 
         self.page = await primary_context.new_page()
         try:
-            await self.page.goto("about:blank", wait_until="load")
+            await self._safe_goto(self.page, "about:blank")
         except Exception:
             pass
         
@@ -127,7 +158,10 @@ class PlaywrightBrowser:
                 if contexts and len(contexts[0].pages) == 1:
                     # Check if it's the initial page (by URL)
                     page = contexts[0].pages[0]
-                    page_url = await page.evaluate("window.location.href")
+                    page_url = await asyncio.wait_for(
+                        page.evaluate("window.location.href"),
+                        timeout=self._operation_timeout_seconds,
+                    )
                     if (
                         page_url == "about:blank" or 
                         page_url == "chrome://newtab/" or 
@@ -239,9 +273,9 @@ class PlaywrightBrowser:
         
         while asyncio.get_event_loop().time() - start_time < timeout:
             # Check if the page has completely loaded
-            is_loaded = await self.page.evaluate("""() => {
+            is_loaded = await self._safe_evaluate("""() => {
                 return document.readyState === 'complete';
-            }""")
+            }""", default=False)
             
             if is_loaded:
                 return True
@@ -256,7 +290,7 @@ class PlaywrightBrowser:
         """Extract content from the current page"""
 
         # Execute JavaScript to get elements in the viewport    
-        visible_content = await self.page.evaluate("""() => {
+        visible_content = await self._safe_evaluate("""() => {
             const visibleElements = [];
             const viewportHeight = window.innerHeight;
             const viewportWidth = window.innerWidth;
@@ -300,7 +334,7 @@ class PlaywrightBrowser:
             
             // Build HTML containing these visible elements
             return '<div>' + visibleElements.join('') + '</div>';
-        }""")
+        }""", default="<div></div>")
 
         
         # Convert to Markdown
@@ -339,7 +373,7 @@ class PlaywrightBrowser:
         self.page.interactive_elements_cache = []
         
         # Execute JavaScript to get interactive elements in the viewport
-        interactive_elements = await self.page.evaluate("""() => {
+        interactive_elements = await self._safe_evaluate("""() => {
             const interactiveElements = [];
             const viewportHeight = window.innerHeight;
             const viewportWidth = window.innerWidth;
@@ -477,7 +511,7 @@ class PlaywrightBrowser:
             }
             
             return interactiveElements;
-        }""")
+        }""", default=[])
         
         # Update cache
         self.page.interactive_elements_cache = interactive_elements
@@ -505,14 +539,7 @@ class PlaywrightBrowser:
         try:
             # Clear cache as the page is about to change
             self.page.interactive_elements_cache = []
-            try:
-                await self.page.goto(url, timeout=timeout)
-            except asyncio.TimeoutError:
-                logger.warning(f"Navigation timeout for {url}: page took longer than {timeout}ms to load")
-                # Don't fail the operation, just log and continue
-                # This allows the agent to move on rather than hanging indefinitely
-            except Exception as e:
-                logger.warning(f"Failed to navigate to {url}: {str(e)}")
+            await self._safe_goto(self.page, url, timeout_ms=min(timeout, 15000))
 
             return ToolResult(
                 success=True,
@@ -563,7 +590,7 @@ class PlaywrightBrowser:
                     return ToolResult(success=False, message=f"Cannot find interactive element with index {index}")
                 
                 # Check if the element is visible
-                is_visible = await self.page.evaluate("""(element) => {
+                is_visible = await self._safe_evaluate("""(element) => {
                     if (!element) return false;
                     const rect = element.getBoundingClientRect();
                     const style = window.getComputedStyle(element);
@@ -574,15 +601,15 @@ class PlaywrightBrowser:
                         style.visibility === 'hidden' || 
                         style.opacity === '0'
                     );
-                }""", element)
+                }""", element, default=False)
                 
                 if not is_visible:
                     # Try to scroll to the element position
-                    await self.page.evaluate("""(element) => {
+                    await self._safe_evaluate("""(element) => {
                         if (element) {
                             element.scrollIntoView({behavior: 'smooth', block: 'center'});
                         }
-                    }""", element)
+                    }""", element, default=None)
                     # Wait for the element to become visible
                     await asyncio.sleep(1)
                 
@@ -667,9 +694,9 @@ class PlaywrightBrowser:
         """Scroll up"""
         await self._ensure_page()
         if to_top:
-            await self.page.evaluate("window.scrollTo(0, 0)")
+            await self._safe_evaluate("window.scrollTo(0, 0)", default=None)
         else:
-            await self.page.evaluate("window.scrollBy(0, -window.innerHeight)")
+            await self._safe_evaluate("window.scrollBy(0, -window.innerHeight)", default=None)
         return ToolResult(success=True)
     
     async def scroll_down(
@@ -679,9 +706,9 @@ class PlaywrightBrowser:
         """Scroll down"""
         await self._ensure_page()
         if to_bottom:
-            await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            await self._safe_evaluate("window.scrollTo(0, document.body.scrollHeight)", default=None)
         else:
-            await self.page.evaluate("window.scrollBy(0, window.innerHeight)")
+            await self._safe_evaluate("window.scrollBy(0, window.innerHeight)", default=None)
         return ToolResult(success=True)
     
     async def screenshot(
@@ -710,15 +737,15 @@ class PlaywrightBrowser:
     async def console_exec(self, javascript: str) -> ToolResult:
         """Execute JavaScript code"""
         await self._ensure_page()
-        result = await self.page.evaluate(javascript)
+        result = await self._safe_evaluate(javascript)
         return ToolResult(success=True, data={"result": result})
     
     async def console_view(self, max_lines: Optional[int] = None) -> ToolResult:
         """View console output"""
         await self._ensure_page()
-        logs = await self.page.evaluate("""() => {
+        logs = await self._safe_evaluate("""() => {
             return window.console.logs || [];
-        }""")
+        }""", default=[])
         if max_lines is not None:
             logs = logs[-max_lines:]
         return ToolResult(success=True, data={"logs": logs})

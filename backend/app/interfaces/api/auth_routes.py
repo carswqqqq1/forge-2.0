@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
+import time
 
 from app.application.services.auth_service import AuthService
 from app.application.services.token_service import TokenService
@@ -24,15 +25,38 @@ from app.domain.models.user import User
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+_RATE_LIMIT_WINDOW_SECONDS = 60
+_RATE_LIMIT_MAX_ATTEMPTS = 5
+_auth_attempts: dict[str, list[float]] = {}
+
+
+def _client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _enforce_rate_limit(request: Request, scope: str) -> None:
+    now = time.time()
+    ip = _client_ip(request)
+    key = f"{scope}:{ip}"
+    attempts = [ts for ts in _auth_attempts.get(key, []) if now - ts < _RATE_LIMIT_WINDOW_SECONDS]
+    if len(attempts) >= _RATE_LIMIT_MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many login attempts")
+    attempts.append(now)
+    _auth_attempts[key] = attempts
 
 
 
 @router.post("/login", response_model=APIResponse[LoginResponse])
 async def login(
+    http_request: Request,
     request: LoginRequest,
     auth_service: AuthService = Depends(get_auth_service)
 ) -> APIResponse[LoginResponse]:
     """User login endpoint"""
+    _enforce_rate_limit(http_request, "login")
     # Authenticate user and get tokens
     auth_result = await auth_service.login_with_tokens(request.email, request.password)
     
@@ -47,10 +71,12 @@ async def login(
 
 @router.post("/register", response_model=APIResponse[RegisterResponse])
 async def register(
+    http_request: Request,
     request: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service)
 ) -> APIResponse[RegisterResponse]:
     """User registration endpoint"""
+    _enforce_rate_limit(http_request, "register")
     # Register user
     user = await auth_service.register_user(
         fullname=request.fullname,

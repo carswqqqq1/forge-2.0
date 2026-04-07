@@ -1,4 +1,5 @@
 import logging
+import time
 from app.domain.services.flows.base import BaseFlow
 from app.domain.models.message import Message
 from typing import AsyncGenerator, Optional
@@ -27,6 +28,7 @@ from app.domain.services.tools.browser import BrowserToolkit
 from app.domain.services.tools.file import FileToolkit
 from app.domain.services.tools.message import MessageToolkit
 from app.domain.services.tools.search import SearchToolkit
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +119,18 @@ class PlanActFlow(BaseFlow):
         logger.info(f"Agent {self._agent_id} started processing message: {message.message[:50]}...")
         step = None
         self._iteration_count = 0
+        started_at = time.monotonic()
+        task_timeout_seconds = get_settings().agent_task_timeout_seconds
         while True:
+            if time.monotonic() - started_at > task_timeout_seconds:
+                logger.error(
+                    "Agent %s exceeded global task timeout (%.0fs)",
+                    self._agent_id,
+                    task_timeout_seconds,
+                )
+                yield ErrorEvent(error=f"Task timed out after {int(task_timeout_seconds)} seconds")
+                self.status = AgentStatus.COMPLETED
+                break
             self._iteration_count += 1
             if self._iteration_count > self.MAX_ITERATIONS:
                 logger.error(f"Agent {self._agent_id} exceeded maximum iterations ({self.MAX_ITERATIONS})")

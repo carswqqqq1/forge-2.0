@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import secrets
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -89,8 +90,8 @@ class Settings(BaseSettings):
     password_salt: str | None = None
     password_hash_rounds: int = 10
     password_hash_algorithm: str = "pbkdf2_sha256"
-    local_auth_email: str = "admin@example.com"
-    local_auth_password: str = "admin"
+    local_auth_email: str = ""
+    local_auth_password: str = ""
     
     # Email configuration
     email_host: str | None = None  # "smtp.gmail.com"
@@ -100,7 +101,7 @@ class Settings(BaseSettings):
     email_from: str | None = None
     
     # JWT configuration
-    jwt_secret_key: str = "your-secret-key-here"  # Should be set in production
+    jwt_secret_key: str = secrets.token_hex(32)
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 7
@@ -124,6 +125,9 @@ class Settings(BaseSettings):
     
     # Logging configuration
     log_level: str = "INFO"
+    max_request_body_size_bytes: int = 1_048_576
+    tool_call_timeout_seconds: float = 25.0
+    agent_task_timeout_seconds: float = 600.0
     
     class Config:
         env_file = ".env"
@@ -133,6 +137,8 @@ class Settings(BaseSettings):
         """Validate configuration settings"""
         if not self.api_key:
             raise ValueError("API key is required")
+        if self.auth_provider == "local" and (not self.local_auth_email or not self.local_auth_password):
+            raise ValueError("LOCAL_AUTH_EMAIL and LOCAL_AUTH_PASSWORD must be set in environment")
 
 @lru_cache()
 def get_settings() -> Settings:

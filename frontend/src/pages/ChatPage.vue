@@ -343,23 +343,27 @@ const handlePlanEvent = (planData: PlanEventData) => {
 };
 
 const handleEvent = async (event: AgentSSEEvent) => {
-  if (event.event === 'message') {
-    handleMessageEvent(event.data as MessageEventData);
-  } else if (event.event === 'tool') {
-    handleToolEvent(event.data as ToolEventData);
-  } else if (event.event === 'step') {
-    handleStepEvent(event.data as StepEventData);
-  } else if (event.event === 'done') {
-    isLoading.value = false;
-    await markTaskComplete();
-  } else if (event.event === 'error') {
-    handleErrorEvent(event.data as ErrorEventData);
-  } else if (event.event === 'title') {
-    handleTitleEvent(event.data as TitleEventData);
-  } else if (event.event === 'plan') {
-    handlePlanEvent(event.data as PlanEventData);
+  try {
+    if (event.event === 'message') {
+      handleMessageEvent(event.data as MessageEventData);
+    } else if (event.event === 'tool') {
+      handleToolEvent(event.data as ToolEventData);
+    } else if (event.event === 'step') {
+      handleStepEvent(event.data as StepEventData);
+    } else if (event.event === 'done') {
+      isLoading.value = false;
+      await markTaskComplete();
+    } else if (event.event === 'error') {
+      handleErrorEvent(event.data as ErrorEventData);
+    } else if (event.event === 'title') {
+      handleTitleEvent(event.data as TitleEventData);
+    } else if (event.event === 'plan') {
+      handlePlanEvent(event.data as PlanEventData);
+    }
+    lastEventId.value = event.data.event_id;
+  } catch (e) {
+    console.error('Event parse error:', e);
   }
-  lastEventId.value = event.data.event_id;
 };
 
 const handleSubmit = () => {
