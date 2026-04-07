@@ -13,7 +13,14 @@ import type { FileInfo } from './file';
 export async function createSession(
   modelTier: 'lite' | 'regular' | 'max' = 'lite',
   prompt: string = '',
-  options: { maxBudget?: number; mode?: 'auto' | 'checkpoint'; permissions?: 'standard' | 'guarded'; wideResearch?: boolean } = {}
+  options: {
+    maxBudget?: number;
+    mode?: 'auto' | 'checkpoint';
+    permissions?: 'standard' | 'guarded';
+    wideResearch?: boolean;
+    inputMode?: 'normal' | 'wide_research' | 'slides' | 'website' | 'design';
+    modeConfig?: Record<string, any>;
+  } = {}
 ): Promise<CreateSessionResponse> {
   const params = new URLSearchParams({
     model_tier: modelTier,
@@ -22,6 +29,9 @@ export async function createSession(
     mode: options.mode ?? 'auto',
     permissions: options.permissions ?? 'standard',
     wide_research: String(Boolean(options.wideResearch)),
+    wide_research_mode: String(Boolean(options.wideResearch || options.inputMode === 'wide_research')),
+    input_mode: options.inputMode ?? 'normal',
+    mode_config: JSON.stringify(options.modeConfig ?? {}),
   });
   const response = await apiClient.put<ApiResponse<CreateSessionResponse>>(`/sessions?${params.toString()}`);
   return response.data.data;
@@ -105,7 +115,9 @@ export const chatWithSession = async (
   sessionId: string, 
   message: string = '',
   eventId?: string,
-  attachments?: string[],
+  attachments?: Array<{ file_id: string; filename: string }>,
+  inputMode?: 'normal' | 'wide_research' | 'slides' | 'website' | 'design',
+  modeConfig?: Record<string, any>,
   callbacks?: SSECallbacks<AgentSSEEvent['data']>
 ): Promise<() => void> => {
   return createSSEConnection<AgentSSEEvent['data']>(
@@ -116,7 +128,9 @@ export const chatWithSession = async (
         message, 
         timestamp: Math.floor(Date.now() / 1000), 
         event_id: eventId,
-        attachments
+        attachments,
+        input_mode: inputMode,
+        mode_config: modeConfig ?? {},
       }
     },
     callbacks

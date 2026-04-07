@@ -13,6 +13,7 @@ from app.domain.models.event import (
     TitleEvent,
     ToolEvent,
     StepEvent,
+    WideResearchCompleteEvent,
 )
 
 class BaseEventData(BaseModel):
@@ -168,6 +169,47 @@ class PlanSSEEvent(BaseSSEEvent):
             )
         )
 
+class WideResearchSubjectsIdentifiedEventData(BaseEventData):
+    query: str
+    subjects: List[str]
+
+class WideResearchSubjectsIdentifiedSSEEvent(BaseSSEEvent):
+    event: Literal["wide_research_subjects_identified"] = "wide_research_subjects_identified"
+    data: WideResearchSubjectsIdentifiedEventData
+
+class WideResearchSubjectCompleteEventData(BaseEventData):
+    query: str
+    index: int
+    total: int
+    completed: int
+    subject: Dict[str, Any]
+
+class WideResearchSubjectCompleteSSEEvent(BaseSSEEvent):
+    event: Literal["wide_research_subject_complete"] = "wide_research_subject_complete"
+    data: WideResearchSubjectCompleteEventData
+
+class WideResearchCompleteEventData(BaseEventData):
+    query: str
+    report: str
+    files: List[FileInfoResponse] = []
+    subjects: List[Dict[str, Any]] = []
+
+class WideResearchCompleteSSEEvent(BaseSSEEvent):
+    event: Literal["wide_research_complete"] = "wide_research_complete"
+    data: WideResearchCompleteEventData
+
+    @classmethod
+    async def from_event_async(cls, event: WideResearchCompleteEvent) -> Self:
+        return cls(
+            data=WideResearchCompleteEventData(
+                **BaseEventData.base_event_data(event),
+                query=event.query,
+                report=event.report,
+                files=[await FileInfoResponse.from_file_info(file) for file in (event.files or [])],
+                subjects=event.subjects or [],
+            )
+        )
+
 class CommonSSEEvent(BaseSSEEvent):
     event: str
     data: CommonEventData
@@ -182,6 +224,9 @@ AgentSSEEvent = Union[
     DoneSSEEvent,
     ErrorSSEEvent,
     WaitSSEEvent,
+    WideResearchSubjectsIdentifiedSSEEvent,
+    WideResearchSubjectCompleteSSEEvent,
+    WideResearchCompleteSSEEvent,
 ]
 
 @dataclass

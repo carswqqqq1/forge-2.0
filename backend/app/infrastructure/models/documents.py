@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List, Type, TypeVar, Generic, get_args, Self
+from typing import Dict, Optional, List, Type, TypeVar, Generic, get_args, Self, Any
 from datetime import datetime, timezone, UTC
 from beanie import Document
 from pydantic import BaseModel, Field
@@ -109,6 +109,8 @@ class SessionDocument(BaseDocument[Session], id_field="session_id", domain_model
     risk_level: str = "low"
     model_tier: str = "lite"
     wide_research: bool = False
+    input_mode: str = "normal"
+    mode_config: Dict[str, Any] = Field(default_factory=dict)
     class Settings:
         name = "sessions"
         indexes = [

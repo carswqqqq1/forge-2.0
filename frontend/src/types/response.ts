@@ -17,6 +17,8 @@ export interface CreateSessionResponse {
     risk_level: string;
     model_tier: string;
     wide_research: boolean;
+    input_mode: string;
+    mode_config: Record<string, any>;
 }
 
 export interface GetSessionResponse {
@@ -34,6 +36,8 @@ export interface GetSessionResponse {
     risk_level: string;
     model_tier: string;
     wide_research: boolean;
+    input_mode: string;
+    mode_config: Record<string, any>;
 }
 
 export interface ListSessionItem {
@@ -52,6 +56,8 @@ export interface ListSessionItem {
     risk_level: string;
     model_tier: string;
     wide_research: boolean;
+    input_mode: string;
+    mode_config: Record<string, any>;
 }
 
 export interface ListSessionResponse {

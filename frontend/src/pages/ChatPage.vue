@@ -55,6 +55,18 @@
 
       <div class="mx-auto w-full max-w-full sm:max-w-[820px] sm:min-w-[390px] flex flex-col flex-1">
         <div class="flex flex-col w-full gap-[12px] pb-[80px] pt-[12px] flex-1 overflow-y-auto">
+          <WideResearchCard
+            v-if="wideResearchSubjects.length > 0"
+            :title="title || goal || 'your topic'"
+            :subjects="wideResearchSubjects"
+            :completed="wideResearchCompleted"
+            :total="wideResearchSubjects.length"
+            :started="wideResearchStarted"
+            :showSkip="showWideResearchSkip"
+            :rows="wideResearchRows"
+            @continue-normal="activateMode('normal')"
+            @skip="handleWideResearchSkip" />
+
           <ChatMessage
             v-for="(message, index) in messages"
             :key="index"
@@ -97,7 +109,23 @@
             <ArrowDown class="text-[var(--icon-primary)]" :size="20" />
           </button>
           <PlanPanel v-if="plan && plan.steps.length > 0" :plan="plan" />
+          <div class="pb-3">
+            <InputModeToggleBar
+              :activeMode="inputMode"
+              :designModel="designModel"
+              @select-mode="handleModeSelect"
+              @apply-prompt="applyPrompt"
+              @update:designModel="designModel = $event" />
+            <ModeSuggestionPanel
+              :mode="inputMode"
+              :selectedSlidesTemplate="slidesTemplate"
+              :selectedWebsiteCategory="websiteCategory"
+              @apply-prompt="applyPrompt"
+              @update:slidesTemplate="slidesTemplate = $event"
+              @update:websiteCategory="websiteCategory = $event" />
+          </div>
           <ChatBox
+            ref="chatBoxRef"
             v-model="inputMessage"
             :rows="1"
             @submit="handleSubmit"
@@ -105,7 +133,7 @@
             @stop="handleStop"
             :disabled="(currentUser?.credits ?? 0) <= 0"
             :attachments="attachments"
-            :placeholder="wideResearch ? 'What topic do you want to research deeply?' : 'Assign a task to Forge...'" />
+            :placeholder="placeholder" />
         </div>
       </div>
     </div>
@@ -122,6 +150,9 @@ import { useI18n } from 'vue-i18n';
 import ChatBox from '../components/ChatBox.vue';
 import ChatMessage from '../components/ChatMessage.vue';
 import ForgeModelDropdown from '../components/ForgeModelDropdown.vue';
+import InputModeToggleBar from '../components/InputModeToggleBar.vue';
+import ModeSuggestionPanel from '../components/ModeSuggestionPanel.vue';
+import WideResearchCard from '../components/WideResearchCard.vue';
 import * as agentApi from '../api/agent';
 import { Message, MessageContent, ToolContent, StepContent, AttachmentsContent, isConsecutiveAssistant } from '../types/message';
 import {
@@ -132,6 +163,9 @@ import {
   TitleEventData,
   PlanEventData,
   AgentSSEEvent,
+  WideResearchSubjectsIdentifiedEventData,
+  WideResearchSubjectCompleteEventData,
+  WideResearchCompleteEventData,
 } from '../types/event';
 import ToolPanel from '../components/ToolPanel.vue';
 import PlanPanel from '../components/PlanPanel.vue';
@@ -145,6 +179,7 @@ import { useAuth } from '../composables/useAuth';
 import { copyToClipboard } from '../utils/dom';
 import { SessionStatus } from '../types/response';
 import LoadingIndicator from '@/components/ui/LoadingIndicator.vue';
+import { useInputMode } from '../composables/useInputMode';
 
 const router = useRouter();
 const { t } = useI18n();
@@ -152,6 +187,15 @@ const { toggleLeftPanel, isLeftPanelShow } = useLeftPanel();
 const { showSessionFileList } = useSessionFileList();
 const { hideFilePanel } = useFilePanel();
 const { currentUser } = useAuth();
+const {
+  inputMode,
+  designModel,
+  slidesTemplate,
+  websiteCategory,
+  placeholder,
+  activateMode,
+  buildModeConfig,
+} = useInputMode();
 
 const createInitialState = () => ({
   inputMessage: '',
@@ -209,12 +253,21 @@ const {
 } = toRefs(state);
 
 const toolPanel = ref<InstanceType<typeof ToolPanel>>();
+const chatBoxRef = ref<InstanceType<typeof ChatBox>>();
 const simpleBarRef = ref<InstanceType<typeof SimpleBar>>();
 const observerRef = ref<HTMLDivElement>();
 const chatContainerRef = ref<HTMLDivElement>();
 const rating = ref(0);
 const showOverflow = ref(false);
+const nowTick = ref(Date.now());
+let nowTickTimer: number | null = null;
+const wideResearchSubjects = ref<Array<{ name: string; status: 'waiting' | 'running' | 'completed' | 'skipped' }>>([]);
+const wideResearchRows = ref<Array<Record<string, any>>>([]);
+const wideResearchCompleted = ref(0);
+const wideResearchStarted = ref(false);
+const wideResearchStartedAt = ref<number | null>(null);
 const ratingKey = computed(() => sessionId.value ? `forge-rating-${sessionId.value}` : '');
+const showWideResearchSkip = computed(() => !!wideResearchStartedAt.value && nowTick.value - wideResearchStartedAt.value > 60_000);
 
 const runModeLabel = computed(() => runMode.value === 'checkpoint' ? 'Checkpoint' : 'Auto Mode');
 const permissionsLabel = computed(() => permissions.value === 'guarded' ? 'Guarded Access' : 'Standard Access');
@@ -233,6 +286,15 @@ const resetState = () => {
     cancelCurrentChat.value();
   }
   Object.assign(state, createInitialState());
+  activateMode('normal');
+  designModel.value = 'Forge Image v1';
+  slidesTemplate.value = 'Minimal';
+  websiteCategory.value = 'SaaS';
+  wideResearchSubjects.value = [];
+  wideResearchRows.value = [];
+  wideResearchCompleted.value = 0;
+  wideResearchStarted.value = false;
+  wideResearchStartedAt.value = null;
   rating.value = 0;
   showOverflow.value = false;
 };
@@ -354,6 +416,63 @@ const handlePlanEvent = (planData: PlanEventData) => {
   plan.value = planData;
 };
 
+const handleWideResearchSubjects = (data: WideResearchSubjectsIdentifiedEventData) => {
+  activateMode('wide_research');
+  wideResearchSubjects.value = data.subjects.map((subject, index) => ({
+    name: subject,
+    status: 'running',
+  }));
+  wideResearchRows.value = [];
+  wideResearchCompleted.value = 0;
+  wideResearchStarted.value = true;
+  wideResearchStartedAt.value = Date.now();
+};
+
+const handleWideResearchSubjectComplete = (data: WideResearchSubjectCompleteEventData) => {
+  if (!wideResearchSubjects.value.length) return;
+  wideResearchStarted.value = true;
+  wideResearchCompleted.value = data.completed;
+  wideResearchRows.value = [
+    ...wideResearchRows.value.filter((row) => row.name !== data.subject?.name),
+    data.subject,
+  ];
+  wideResearchSubjects.value = wideResearchSubjects.value.map((subject, index) => {
+    if (index === data.index) return { ...subject, name: data.subject?.name || subject.name, status: 'completed' };
+    return subject;
+  });
+};
+
+const handleWideResearchComplete = (data: WideResearchCompleteEventData) => {
+  wideResearchStarted.value = false;
+  wideResearchCompleted.value = data.subjects?.length || wideResearchCompleted.value;
+  if (Array.isArray(data.subjects) && data.subjects.length > 0) {
+    wideResearchRows.value = data.subjects;
+    wideResearchSubjects.value = data.subjects.map((subject) => ({
+      name: String(subject.name || 'Subject'),
+      status: 'completed',
+    }));
+  }
+};
+
+const applyPrompt = (prompt: string) => {
+  inputMessage.value = prompt;
+  chatBoxRef.value?.focusInput();
+};
+
+const handleModeSelect = (mode: 'normal' | 'wide_research' | 'slides' | 'website' | 'design') => {
+  activateMode(mode);
+  chatBoxRef.value?.focusInput();
+};
+
+const handleWideResearchSkip = () => {
+  wideResearchSubjects.value = wideResearchSubjects.value.map((subject) =>
+    subject.status === 'waiting' || subject.status === 'running'
+      ? { ...subject, status: 'skipped' }
+      : subject
+  );
+  showInfoToast('Forge will finish with the subjects it already has.');
+};
+
 const handleEvent = async (event: AgentSSEEvent) => {
   try {
     if (event.event === 'message') {
@@ -371,6 +490,12 @@ const handleEvent = async (event: AgentSSEEvent) => {
       handleTitleEvent(event.data as TitleEventData);
     } else if (event.event === 'plan') {
       handlePlanEvent(event.data as PlanEventData);
+    } else if (event.event === 'wide_research_subjects_identified') {
+      handleWideResearchSubjects(event.data as WideResearchSubjectsIdentifiedEventData);
+    } else if (event.event === 'wide_research_subject_complete') {
+      handleWideResearchSubjectComplete(event.data as WideResearchSubjectCompleteEventData);
+    } else if (event.event === 'wide_research_complete') {
+      handleWideResearchComplete(event.data as WideResearchCompleteEventData);
     }
     lastEventId.value = event.data.event_id;
   } catch (e) {
@@ -416,6 +541,8 @@ const chat = async (message: string = '', files: FileInfo[] = []) => {
       message,
       lastEventId.value,
       files.map((file: FileInfo) => ({ file_id: file.file_id, filename: file.filename })),
+      inputMode.value,
+      buildModeConfig(),
       {
         onOpen: () => {
           isLoading.value = true;
@@ -457,6 +584,10 @@ const restoreSession = async () => {
   riskLevel.value = session.risk_level || 'low';
   modelTier.value = session.model_tier || 'lite';
   wideResearch.value = !!session.wide_research;
+  activateMode((session.input_mode as any) || (session.wide_research ? 'wide_research' : 'normal'));
+  designModel.value = (session.mode_config?.designModel as any) || 'Forge Image v1';
+  slidesTemplate.value = session.mode_config?.slidesTemplate || 'Minimal';
+  websiteCategory.value = session.mode_config?.websiteCategory || 'SaaS';
   realTime.value = false;
   for (const event of session.events) {
     await handleEvent(event);
@@ -484,11 +615,28 @@ onBeforeRouteUpdate((to, _, next) => {
 
 onMounted(() => {
   hideFilePanel();
+  nowTickTimer = window.setInterval(() => {
+    nowTick.value = Date.now();
+  }, 1000);
   const routeParams = router.currentRoute.value.params;
   if (routeParams.sessionId) {
     sessionId.value = String(routeParams.sessionId);
     const message = history.state?.message;
     const files: FileInfo[] = history.state?.files;
+    const routeInputMode = history.state?.inputMode;
+    const routeModeConfig = history.state?.modeConfig;
+    if (routeInputMode) {
+      activateMode(routeInputMode);
+    }
+    if (routeModeConfig?.designModel) {
+      designModel.value = routeModeConfig.designModel;
+    }
+    if (routeModeConfig?.slidesTemplate) {
+      slidesTemplate.value = routeModeConfig.slidesTemplate;
+    }
+    if (routeModeConfig?.websiteCategory) {
+      websiteCategory.value = routeModeConfig.websiteCategory;
+    }
     history.replaceState({}, document.title);
     if (message) {
       void chat(message, files);
@@ -499,6 +647,10 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (nowTickTimer) {
+    window.clearInterval(nowTickTimer);
+    nowTickTimer = null;
+  }
   try {
     if (cancelCurrentChat.value) {
       cancelCurrentChat.value();

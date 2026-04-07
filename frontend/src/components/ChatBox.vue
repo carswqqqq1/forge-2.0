@@ -6,6 +6,7 @@
         <ChatBoxFiles ref="chatBoxFileListRef" :attachments="attachments" />
         <div class="overflow-y-auto pl-4 pr-3">
           <textarea
+            ref="textareaRef"
             class="flex rounded-md border-input focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden flex-1 bg-transparent p-0 pt-[1px] border-0 w-full placeholder:text-[var(--text-disable)] text-[15px] shadow-none resize-none min-h-[74px]"
             :rows="rows"
             :value="modelValue"
@@ -84,6 +85,7 @@ import IntegrationLogo from './IntegrationLogo.vue';
 const hasTextInput = ref(false);
 const isComposing = ref(false);
 const chatBoxFileListRef = ref();
+const textareaRef = ref<HTMLTextAreaElement>();
 const connectBarDismissed = ref(localStorage.getItem('forge-connect-bar-dismissed') === 'true');
 const { openConnectModal } = useConnectModal();
 const connectedTools = ref<Record<string, boolean>>({
@@ -163,6 +165,14 @@ const dismissConnectBar = () => {
 watch(() => props.modelValue, (value) => {
     hasTextInput.value = value.trim() !== '';
 }, { immediate: true });
+
+const focusInput = () => {
+    textareaRef.value?.focus();
+};
+
+defineExpose({
+    focusInput,
+});
 </script>
 
 <style scoped>

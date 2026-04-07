@@ -1,4 +1,4 @@
-from typing import Optional, AsyncGenerator, List
+from typing import Any, Optional, AsyncGenerator, List
 import logging
 from datetime import datetime
 from app.domain.models.session import Session, SessionStatus
@@ -132,7 +132,9 @@ class AgentDomainService:
         message: Optional[str] = None,
         timestamp: Optional[datetime] = None,
         latest_event_id: Optional[str] = None,
-        attachments: Optional[List[dict]] = None
+        attachments: Optional[List[dict]] = None,
+        input_mode: Optional[str] = None,
+        mode_config: Optional[dict[str, Any]] = None,
     ) -> AsyncGenerator[BaseEvent, None]:
         """
         Chat with an agent
@@ -147,6 +149,13 @@ class AgentDomainService:
             task = await self._get_task(session)
 
             if message:
+                if input_mode:
+                    session.input_mode = input_mode
+                    session.wide_research = input_mode == "wide_research"
+                if mode_config is not None:
+                    session.mode_config = mode_config
+                await self._session_repository.save(session)
+
                 if session.status != SessionStatus.RUNNING or task is None:
                     task = await self._create_task(session)
                     if not task:

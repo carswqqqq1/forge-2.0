@@ -22,6 +22,8 @@ from app.domain.models.event import (
     McpToolContent,
 )
 from app.domain.services.flows.plan_act import PlanActFlow
+from app.domain.services.mode_outputs import ModeOutputService
+from app.domain.services.wide_research import WideResearchService
 from app.domain.external.sandbox import Sandbox
 from app.domain.external.browser import Browser
 from app.domain.external.search import SearchEngine
@@ -225,7 +227,10 @@ class AgentTaskRunner(TaskRunner):
                     
                 logger.info(f"Agent {self._agent_id} received new message: {message[:50]}...")
 
-                message_obj = Message(message=message, attachments=[attachment.file_path for attachment in event.attachments])
+                message_obj = Message(
+                    message=message,
+                    attachments=[attachment.file_path for attachment in (event.attachments or []) if attachment.file_path],
+                )
                 
                 async for event in self._run_flow(message_obj):
                     await self._put_and_add_event(task, event)
@@ -264,6 +269,64 @@ class AgentTaskRunner(TaskRunner):
         if not message.message:
             logger.warning(f"Agent {self._agent_id} received empty message")
             yield ErrorEvent(error="No message")
+            return
+
+        session = await self._session_repository.find_by_id(self._session_id)
+        agent = await self._repository.find_by_id(self._agent_id)
+        if not session or not agent:
+            yield ErrorEvent(error="Forge could not load the current session context.")
+            return
+
+        input_mode = (session.input_mode or "normal").lower()
+        mode_service = ModeOutputService(
+            agent=agent,
+            session_id=self._session_id,
+            user_id=self._user_id,
+            file_storage=self._file_storage,
+            session_repository=self._session_repository,
+        )
+        if input_mode == "wide_research" or session.wide_research:
+            wide_research_service = WideResearchService(
+                agent=agent,
+                session_id=self._session_id,
+                user_id=self._user_id,
+                file_storage=self._file_storage,
+                session_repository=self._session_repository,
+                search_engine=self._search_engine,
+            )
+            emitted_events: list[AgentEvent] = []
+
+            async def emit_progress(event: BaseEvent) -> None:
+                emitted_events.append(event)
+
+            report, files, _ = await wide_research_service.run_wide_research(message.message, emit_progress)
+            for event in emitted_events:
+                yield event
+            yield MessageEvent(message=report, attachments=files)
+            return
+
+        if input_mode == "slides":
+            async for event in mode_service.run_slides_mode(
+                message.message,
+                session.mode_config.get("slidesTemplate", "Minimal"),
+            ):
+                yield event
+            return
+
+        if input_mode == "website":
+            async for event in mode_service.run_website_mode(
+                message.message,
+                session.mode_config.get("websiteCategory", "SaaS"),
+            ):
+                yield event
+            return
+
+        if input_mode == "design":
+            async for event in mode_service.run_design_mode(
+                message.message,
+                session.mode_config.get("designModel", "Forge Image v1"),
+            ):
+                yield event
             return
 
         async for event in self._flow.run(message):

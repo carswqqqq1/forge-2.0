@@ -346,6 +346,60 @@ This list focuses on high-impact files and systems changed during the Forge rebu
 - integrations are not all fully authenticated production connectors yet
 - live site reliability depends on the local backend tunnel until permanent hosting is set up
 
+## 2026-04-06 - Manus Mode Build
+
+- added shared Forge input-mode architecture across home and chat:
+  - `normal`
+  - `wide_research`
+  - `slides`
+  - `website`
+  - `design`
+- added a shared mode toggle bar with:
+  - Wide Research
+  - Slides
+  - Website
+  - Design
+  - More dropdown
+- expanded the `More` dropdown to include:
+  - Spreadsheet
+  - Wide Research
+  - Video
+  - Audio
+  - Chat mode
+  - Schedule task
+  - Playbook
+- added `mode_config` and `input_mode` persistence to session creation, session restore, and chat requests
+- added new backend `wide_research.py` service with:
+  - LLM-based subject identification
+  - parallel per-subject research synthesis
+  - JSON + CSV output generation
+  - live SSE progress events
+- added new custom SSE events:
+  - `wide_research_subjects_identified`
+  - `wide_research_subject_complete`
+  - `wide_research_complete`
+- added `WideResearchCard.vue` to show the parallel research grid and live result table
+- added `ModeSuggestionPanel.vue` for mode-specific templates, prompt chips, and website integration tags
+- added `InputModeToggleBar.vue` for the shared Manus-style mode switcher
+- added slides-mode backend output generation with real `.pptx` export via `python-pptx`
+- added website-mode backend output generation with:
+  - preview HTML
+  - extracted CSS
+  - extracted JS
+  - downloadable ZIP bundle
+- added design-mode backend output generation with:
+  - NVIDIA image API attempt
+  - automatic PNG fallback renderer if the image API is unavailable
+- updated home page and chat page to route mode state into the backend
+- added new backend dependencies:
+  - `python-pptx`
+  - `pillow`
+- verified:
+  - backend Python compile passes
+  - frontend production build passes
+- note:
+  - local `vue-tsc` is crashing in the toolchain itself on this machine, so frontend type-check could not be used as the verifier for this pass
+
 ## Maintenance Rule For Future Work
 
 Whenever Forge changes, update this file with:

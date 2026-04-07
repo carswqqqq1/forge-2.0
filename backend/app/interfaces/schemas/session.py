@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field
+from typing import Any, Dict, Optional, List
 from app.interfaces.schemas.event import AgentSSEEvent
 from app.domain.models.session import SessionStatus
 
@@ -10,6 +10,8 @@ class ChatRequest(BaseModel):
     message: Optional[str] = None
     attachments: Optional[List[dict]] = None
     event_id: Optional[str] = None
+    input_mode: Optional[str] = None
+    mode_config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class UpdateSessionRequest(BaseModel):
@@ -33,6 +35,8 @@ class CreateSessionResponse(BaseModel):
     risk_level: str = "low"
     model_tier: str = "lite"
     wide_research: bool = False
+    input_mode: str = "normal"
+    mode_config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class GetSessionResponse(BaseModel):
@@ -51,6 +55,8 @@ class GetSessionResponse(BaseModel):
     risk_level: str = "low"
     model_tier: str = "lite"
     wide_research: bool = False
+    input_mode: str = "normal"
+    mode_config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ListSessionItem(BaseModel):
@@ -70,6 +76,8 @@ class ListSessionItem(BaseModel):
     risk_level: str = "low"
     model_tier: str = "lite"
     wide_research: bool = False
+    input_mode: str = "normal"
+    mode_config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ListSessionResponse(BaseModel):

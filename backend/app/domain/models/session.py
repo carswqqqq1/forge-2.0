@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime, UTC
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from enum import Enum
 import uuid
 from app.domain.models.event import PlanEvent, AgentEvent
@@ -35,6 +35,8 @@ class SessionSummary(BaseModel):
     risk_level: str = "low"
     model_tier: str = "lite"
     wide_research: bool = False
+    input_mode: str = "normal"
+    mode_config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class Session(BaseModel):
@@ -64,6 +66,8 @@ class Session(BaseModel):
     risk_level: str = "low"
     model_tier: str = "lite"
     wide_research: bool = False
+    input_mode: str = "normal"
+    mode_config: Dict[str, Any] = Field(default_factory=dict)
 
     def get_last_plan(self) -> Optional[Plan]:
         """Get the last plan from the events"""

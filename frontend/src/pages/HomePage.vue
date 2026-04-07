@@ -39,33 +39,29 @@
         </div>
 
         <ChatBox
+          ref="chatBoxRef"
           :rows="2"
           v-model="message"
           @submit="handleSubmit"
           :isRunning="false"
           :attachments="attachments"
           :disabled="(currentUser?.credits ?? 0) <= 0"
-          :placeholder="wideResearch ? 'What topic do you want to research deeply?' : 'Assign a task to Forge...'" />
+          :placeholder="placeholder" />
 
-        <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
-          <button v-for="action in primaryActions" :key="action.label" class="quick-pill" @click="applyQuickAction(action)">
-            <component :is="action.icon" :size="14" />
-            <span>{{ action.label }}</span>
-          </button>
-          <div class="relative">
-            <button class="quick-pill" @click="showMore = !showMore">
-              <span>More</span>
-            </button>
-            <div v-if="showMore" class="absolute top-full right-0 mt-2 w-[220px] rounded-[18px] border border-[var(--border-main)] bg-white shadow-[0px_18px_48px_0px_rgba(0,0,0,0.12)] p-2 z-50">
-              <button v-for="action in moreActions" :key="action.label" class="more-action" @click="applyQuickAction(action)">
-                <div class="flex items-center gap-2 min-w-0">
-                  <component :is="action.icon" :size="14" />
-                  <span class="truncate">{{ action.label }}</span>
-                </div>
-                <ExternalLink v-if="action.external" :size="14" />
-              </button>
-            </div>
-          </div>
+        <div class="mt-4">
+          <InputModeToggleBar
+            :activeMode="inputMode"
+            :designModel="designModel"
+            @select-mode="handleModeSelect"
+            @apply-prompt="applyPrompt"
+            @update:designModel="designModel = $event" />
+          <ModeSuggestionPanel
+            :mode="inputMode"
+            :selectedSlidesTemplate="slidesTemplate"
+            :selectedWebsiteCategory="websiteCategory"
+            @apply-prompt="applyPrompt"
+            @update:slidesTemplate="slidesTemplate = $event"
+            @update:websiteCategory="websiteCategory = $event" />
         </div>
 
         <div v-if="!onboardingDismissed" class="mt-12">
@@ -101,7 +97,7 @@ import { useRouter } from 'vue-router';
 import ChatBox from '../components/ChatBox.vue';
 import { createSession } from '../api/agent';
 import { showErrorToast, showInfoToast } from '../utils/toast';
-import { PanelLeft, Sparkles, Plus, Bell, BriefcaseBusiness, Monitor, Laptop, PenTool, CalendarClock, SearchCheck, Sheet, Clapperboard, AudioWaveform, MessageCircle, ExternalLink, X } from 'lucide-vue-next';
+import { PanelLeft, Sparkles, Plus, Bell, X } from 'lucide-vue-next';
 import type { FileInfo } from '../api/file';
 import { useLeftPanel } from '../composables/useLeftPanel';
 import { useFilePanel } from '../composables/useFilePanel';
@@ -109,48 +105,35 @@ import { useAuth } from '../composables/useAuth';
 import UserMenu from '../components/UserMenu.vue';
 import ForgeModelDropdown from '../components/ForgeModelDropdown.vue';
 import { useModelTier } from '../composables/useModelTier';
-
-type QuickAction = {
-  label: string;
-  icon: any;
-  prompt: string;
-  wideResearch?: boolean;
-  external?: boolean;
-};
+import InputModeToggleBar from '../components/InputModeToggleBar.vue';
+import ModeSuggestionPanel from '../components/ModeSuggestionPanel.vue';
+import { useInputMode, type InputMode } from '../composables/useInputMode';
 
 const router = useRouter();
 const message = ref('');
 const isSubmitting = ref(false);
 const attachments = ref<FileInfo[]>([]);
+const chatBoxRef = ref<InstanceType<typeof ChatBox>>();
 const { toggleLeftPanel, isLeftPanelShow } = useLeftPanel();
 const { hideFilePanel } = useFilePanel();
 const { currentUser } = useAuth();
 const { currentTier } = useModelTier();
-const showMore = ref(false);
-const wideResearch = ref(false);
+const {
+  inputMode,
+  designModel,
+  slidesTemplate,
+  websiteCategory,
+  wideResearchFlag,
+  placeholder,
+  activateMode,
+  buildModeConfig,
+} = useInputMode();
 
 const avatarLetter = computed(() => currentUser.value?.fullname?.charAt(0)?.toUpperCase() || 'F');
 const showUserMenu = ref(false);
 const userMenuTimeout = ref<number | null>(null);
 const onboardingDismissed = ref(localStorage.getItem('forge-onboarding-dismissed') === 'true');
 const onboardingIndex = ref(0);
-
-const primaryActions: QuickAction[] = [
-  { label: 'Create slides', icon: BriefcaseBusiness, prompt: 'Create a presentation about ' },
-  { label: 'Build website', icon: Monitor, prompt: 'Build a website for ' },
-  { label: 'Develop desktop apps', icon: Laptop, prompt: 'Develop a desktop app that ' },
-  { label: 'Design', icon: PenTool, prompt: 'Design a concept for ' },
-];
-
-const moreActions: QuickAction[] = [
-  { label: 'Wide Research', icon: SearchCheck, prompt: 'Conduct deep research on ', wideResearch: true },
-  { label: 'Spreadsheet', icon: Sheet, prompt: 'Create a spreadsheet for ' },
-  { label: 'Video', icon: Clapperboard, prompt: 'Create a video plan for ' },
-  { label: 'Audio', icon: AudioWaveform, prompt: 'Create an audio brief for ' },
-  { label: 'Chat mode', icon: MessageCircle, prompt: 'Help me think through ' },
-  { label: 'Schedule task', icon: CalendarClock, prompt: 'Schedule a task that ' },
-  { label: 'Playbook', icon: ExternalLink, prompt: 'Create a playbook for ', external: true },
-];
 
 const onboardingCards = [
   {
@@ -181,10 +164,14 @@ const handleUserMenuLeave = () => {
   }, 200);
 };
 
-const applyQuickAction = (action: QuickAction) => {
-  message.value = action.prompt;
-  wideResearch.value = !!action.wideResearch;
-  showMore.value = false;
+const applyPrompt = (prompt: string) => {
+  message.value = prompt;
+  chatBoxRef.value?.focusInput();
+};
+
+const handleModeSelect = (mode: InputMode) => {
+  activateMode(mode);
+  chatBoxRef.value?.focusInput();
 };
 
 const dismissOnboarding = () => {
@@ -208,7 +195,9 @@ const handleSubmit = async () => {
         maxBudget: currentTier.value === 'max' ? 32 : currentTier.value === 'regular' ? 20 : 12,
         mode: 'auto',
         permissions: 'standard',
-        wideResearch: wideResearch.value,
+        wideResearch: wideResearchFlag.value,
+        inputMode: inputMode.value,
+        modeConfig: buildModeConfig(),
       });
       if (currentUser.value) {
         currentUser.value.credits = Math.max(0, (currentUser.value.credits ?? 0) - (session.spent_credits ?? session.estimated_cost ?? 0));
@@ -217,6 +206,8 @@ const handleSubmit = async () => {
         path: `/chat/${session.session_id}`,
         state: {
           message: message.value,
+          inputMode: inputMode.value,
+          modeConfig: buildModeConfig(),
           files: attachments.value.map((file: FileInfo) => ({
             file_id: file.file_id,
             filename: file.filename,
@@ -242,34 +233,5 @@ const handleSubmit = async () => {
   font-weight: 400;
   color: #1a1a1a;
   line-height: 1.15;
-}
-
-.quick-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 9999px;
-  border: 1px solid #e5e7eb;
-  background: white;
-  padding: 8px 16px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.quick-pill:hover,
-.more-action:hover {
-  background: var(--background-gray-main);
-}
-
-.more-action {
-  width: 100%;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-radius: 12px;
-  padding: 0 12px;
-  font-size: 13px;
-  color: var(--text-primary);
 }
 </style>

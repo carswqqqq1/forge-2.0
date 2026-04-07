@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, Optional, List
+from typing import Any, AsyncGenerator, Optional, List
 import logging
 from datetime import datetime
 from app.domain.models.session import Session, SessionSummary
@@ -63,6 +63,8 @@ class AgentService:
         mode: str = "auto",
         permissions: str = "standard",
         wide_research: bool = False,
+        input_mode: str = "normal",
+        mode_config: Optional[dict[str, Any]] = None,
     ) -> Session:
         logger.info(f"Creating new session for user: {user_id}")
         user = await self._user_repository.get_user_by_id(user_id)
@@ -70,8 +72,10 @@ class AgentService:
             raise BadRequestError("User not found")
         if (user.credits or 0) <= 0:
             raise BadRequestError("You are out of credits. Please top up to continue.")
-        prepared_prompt = self._prepare_prompt(prompt, wide_research)
-        estimated_cost = self._estimate_cost(model_tier, prepared_prompt, wide_research)
+        resolved_input_mode = (input_mode or ("wide_research" if wide_research else "normal")).lower()
+        resolved_mode_config = mode_config or {}
+        prepared_prompt = self._prepare_prompt(prompt, wide_research, resolved_input_mode, resolved_mode_config)
+        estimated_cost = self._estimate_cost(model_tier, prepared_prompt, wide_research, resolved_input_mode)
         resolved_budget = max_budget if (max_budget or 0) > 0 else max(estimated_cost * 2, estimated_cost)
         if resolved_budget > 0 and estimated_cost > resolved_budget:
             raise BadRequestError(f"This run is estimated at {estimated_cost} credits, which exceeds your budget cap of {resolved_budget}.")
@@ -94,6 +98,8 @@ class AgentService:
             risk_level=self._estimate_risk_level(prompt),
             model_tier=(model_tier or "lite").lower(),
             wide_research=wide_research,
+            input_mode=resolved_input_mode,
+            mode_config=resolved_mode_config,
         )
         logger.info(f"Created new Session with ID: {session.id} for user: {user_id}")
         await self._session_repository.save(session)
@@ -117,9 +123,18 @@ class AgentService:
             return None
         return "\n".join(lines)
 
-    def _prepare_prompt(self, prompt: str, wide_research: bool) -> str:
+    def _prepare_prompt(self, prompt: str, wide_research: bool, input_mode: str = "normal", mode_config: Optional[dict[str, Any]] = None) -> str:
         clean_prompt = (prompt or "").strip()
         if not wide_research:
+            if input_mode == "slides":
+                style = (mode_config or {}).get("slidesTemplate", "Minimal")
+                return f"Create a presentation in the {style} style.\n\nTopic: {clean_prompt}".strip()
+            if input_mode == "website":
+                website_type = (mode_config or {}).get("websiteCategory", "SaaS")
+                return f"Build a {website_type} website.\n\nBrief: {clean_prompt}".strip()
+            if input_mode == "design":
+                image_model = (mode_config or {}).get("designModel", "Forge Image v1")
+                return f"Generate a design concept with {image_model}.\n\nPrompt: {clean_prompt}".strip()
             return clean_prompt
         return (
             "Use Wide Research mode for this task. Break the topic into 5-8 subtopics, research each subtopic separately, "
@@ -127,13 +142,18 @@ class AgentService:
             f"Research topic: {clean_prompt}"
         ).strip()
 
-    def _estimate_cost(self, model_tier: str, message: str, wide_research: bool = False) -> int:
+    def _estimate_cost(self, model_tier: str, message: str, wide_research: bool = False, input_mode: str = "normal") -> int:
         tier = (model_tier or "lite").lower()
         base_cost_map = {"lite": 1, "regular": 2, "max": 6}
         base_cost = base_cost_map.get(tier, 2)
         task_cost = min(18, max(0, len((message or "").strip()) // 250))
         research_cost = 4 if wide_research else 0
-        return base_cost + task_cost + research_cost
+        mode_cost = {
+            "slides": 3,
+            "website": 5,
+            "design": 4,
+        }.get((input_mode or "normal").lower(), 0)
+        return base_cost + task_cost + research_cost + mode_cost
 
     def _estimate_risk_level(self, prompt: str) -> str:
         text = (prompt or "").lower()
@@ -185,12 +205,14 @@ class AgentService:
         message: Optional[str] = None,
         timestamp: Optional[datetime] = None,
         event_id: Optional[str] = None,
-        attachments: Optional[List[dict]] = None
+        attachments: Optional[List[dict]] = None,
+        input_mode: Optional[str] = None,
+        mode_config: Optional[dict[str, Any]] = None,
     ) -> AsyncGenerator[AgentEvent, None]:
         message_preview = (message or "")[:50] if message else ""
         logger.info(f"Starting chat with session {session_id}: {message_preview}...")
         # Directly use the domain service's chat method, which will check if the session exists
-        async for event in self._agent_domain_service.chat(session_id, user_id, message, timestamp, event_id, attachments):
+        async for event in self._agent_domain_service.chat(session_id, user_id, message, timestamp, event_id, attachments, input_mode=input_mode, mode_config=mode_config):
             logger.debug(f"Received event: {event}")
             yield event
         logger.info(f"Chat with session {session_id} completed")

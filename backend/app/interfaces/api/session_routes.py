@@ -4,6 +4,7 @@ from typing import AsyncGenerator, List, Optional
 from sse_starlette.event import ServerSentEvent
 from datetime import datetime
 import asyncio
+import json
 import websockets
 import logging
 from app.interfaces.dependencies import get_file_service
@@ -39,7 +40,14 @@ async def create_session(
     mode: str = Query(default="auto"),
     permissions: str = Query(default="standard"),
     wide_research: bool = Query(default=False),
+    wide_research_mode: bool = Query(default=False),
+    input_mode: str = Query(default="normal"),
+    mode_config: str = Query(default="{}"),
 ) -> APIResponse[CreateSessionResponse]:
+    try:
+        parsed_mode_config = json.loads(mode_config or "{}")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid mode_config JSON")
     session = await agent_service.create_session(
         current_user.id,
         model_tier=model_tier,
@@ -47,7 +55,9 @@ async def create_session(
         max_budget=max_budget,
         mode=mode,
         permissions=permissions,
-        wide_research=wide_research,
+        wide_research=wide_research or wide_research_mode or input_mode == "wide_research",
+        input_mode=input_mode,
+        mode_config=parsed_mode_config,
     )
     return APIResponse.success(
         CreateSessionResponse(
@@ -60,6 +70,8 @@ async def create_session(
             risk_level=session.risk_level,
             model_tier=session.model_tier,
             wide_research=session.wide_research,
+            input_mode=session.input_mode,
+            mode_config=session.mode_config,
         )
     )
 
@@ -87,6 +99,8 @@ async def get_session(
         risk_level=session.risk_level,
         model_tier=session.model_tier,
         wide_research=session.wide_research,
+        input_mode=session.input_mode,
+        mode_config=session.mode_config,
     ))
 
 @router.delete("/{session_id}", response_model=APIResponse[None])
@@ -150,6 +164,8 @@ async def get_all_sessions(
                 risk_level=s.risk_level,
                 model_tier=s.model_tier,
                 wide_research=s.wide_research,
+                input_mode=s.input_mode,
+                mode_config=s.mode_config,
             ) for s in summaries
         ]
     return APIResponse.success(ListSessionResponse(sessions=session_items))
@@ -179,6 +195,8 @@ async def stream_sessions(
                 risk_level=s.risk_level,
                 model_tier=s.model_tier,
                 wide_research=s.wide_research,
+                input_mode=s.input_mode,
+                mode_config=s.mode_config,
             ) for s in summaries
         ]
             yield ServerSentEvent(
@@ -214,7 +232,9 @@ async def chat(
             message=request.message,
             timestamp=datetime.fromtimestamp(request.timestamp) if request.timestamp else None,
             event_id=request.event_id,
-            attachments=request.attachments
+            attachments=request.attachments,
+            input_mode=request.input_mode,
+            mode_config=request.mode_config,
         ):
             logger.debug(f"Received event from chat: {event}")
             sse_event = await EventMapper.event_to_sse_event(event)

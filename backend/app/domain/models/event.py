@@ -113,6 +113,26 @@ class WaitEvent(BaseEvent):
     """Wait event"""
     type: Literal["wait"] = "wait"
 
+class WideResearchSubjectsIdentifiedEvent(BaseEvent):
+    type: Literal["wide_research_subjects_identified"] = "wide_research_subjects_identified"
+    query: str
+    subjects: List[str]
+
+class WideResearchSubjectCompleteEvent(BaseEvent):
+    type: Literal["wide_research_subject_complete"] = "wide_research_subject_complete"
+    query: str
+    index: int
+    total: int
+    completed: int
+    subject: Dict[str, Any]
+
+class WideResearchCompleteEvent(BaseEvent):
+    type: Literal["wide_research_complete"] = "wide_research_complete"
+    query: str
+    report: str
+    files: List[FileInfo] = []
+    subjects: List[Dict[str, Any]] = []
+
 AgentEvent = Union[
     ErrorEvent,
     PlanEvent, 
@@ -122,4 +142,7 @@ AgentEvent = Union[
     DoneEvent,
     TitleEvent,
     WaitEvent,
+    WideResearchSubjectsIdentifiedEvent,
+    WideResearchSubjectCompleteEvent,
+    WideResearchCompleteEvent,
 ]

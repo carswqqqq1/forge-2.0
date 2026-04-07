@@ -27,6 +27,8 @@ SESSION_LIST_PROJECTION = {
     "risk_level": 1,
     "model_tier": 1,
     "wide_research": 1,
+    "input_mode": 1,
+    "mode_config": 1,
 }
 
 class MongoSessionRepository(SessionRepository):
@@ -89,6 +91,8 @@ class MongoSessionRepository(SessionRepository):
                 risk_level=doc.get("risk_level", "low"),
                 model_tier=doc.get("model_tier", "lite"),
                 wide_research=doc.get("wide_research", False),
+                input_mode=doc.get("input_mode", "normal"),
+                mode_config=doc.get("mode_config", {}),
             ))
         return summaries
     
