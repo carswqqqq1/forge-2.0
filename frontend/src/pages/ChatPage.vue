@@ -15,7 +15,7 @@
             <div class="flex items-center gap-3 min-w-0">
               <ForgeModelDropdown />
               <span class="whitespace-nowrap text-ellipsis overflow-hidden text-[22px] font-medium text-[var(--text-primary)]">
-                {{ title }}
+                {{ title || 'New task' }}
               </span>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
@@ -73,13 +73,13 @@
               </span>
               <div class="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
                 <span>How was this result?</span>
-                <button v-for="star in 5" :key="star" class="text-lg" :class="star <= rating ? 'text-[#f59e0b]' : 'text-black/20'" @click="rating = star">★</button>
+                <button v-for="star in 5" :key="star" class="text-lg transition-colors" :class="star <= rating ? 'text-[#f59e0b]' : 'text-black/20'" @click="saveRating(star)">★</button>
               </div>
             </div>
 
             <div class="mt-4">
               <div class="text-[13px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Suggested follow-ups</div>
-              <div class="mt-3 flex flex-col gap-2">
+              <div class="mt-3 flex flex-wrap gap-2">
                 <button v-for="suggestion in followups" :key="suggestion" class="followup-row" @click="applyFollowup(suggestion)">
                   <div class="flex items-center gap-3 min-w-0">
                     <span class="w-7 h-7 rounded-full bg-[var(--background-gray-main)] flex items-center justify-center text-[14px]">{{ followupIcon(suggestion) }}</span>
@@ -161,7 +161,7 @@ const createInitialState = () => ({
   toolPanelSize: 0,
   realTime: true,
   follow: true,
-  title: t('New Chat'),
+  title: 'New task',
   plan: undefined as PlanEventData | undefined,
   lastNoMessageTool: undefined as ToolContent | undefined,
   lastTool: undefined as ToolContent | undefined,
@@ -214,6 +214,7 @@ const observerRef = ref<HTMLDivElement>();
 const chatContainerRef = ref<HTMLDivElement>();
 const rating = ref(0);
 const showOverflow = ref(false);
+const ratingKey = computed(() => sessionId.value ? `forge-rating-${sessionId.value}` : '');
 
 const runModeLabel = computed(() => runMode.value === 'checkpoint' ? 'Checkpoint' : 'Auto Mode');
 const permissionsLabel = computed(() => permissions.value === 'guarded' ? 'Guarded Access' : 'Standard Access');
@@ -252,9 +253,16 @@ const buildFallbackFollowups = () => {
   return [
     `Summarize the key findings from ${base}`,
     `Turn ${base} into a spreadsheet`,
-    `Create slides from ${base}`,
     `Give me the next best actions for ${base}`,
   ];
+};
+
+const saveRating = (value: number) => {
+  rating.value = value;
+  if (ratingKey.value) {
+    localStorage.setItem(ratingKey.value, String(value));
+  }
+  showSuccessToast('Thanks for the feedback');
 };
 
 const loadFollowups = async () => {
@@ -269,6 +277,10 @@ const loadFollowups = async () => {
 const markTaskComplete = async () => {
   isTaskComplete.value = true;
   await loadFollowups();
+  if (ratingKey.value) {
+    const saved = Number(localStorage.getItem(ratingKey.value) || 0);
+    rating.value = Number.isFinite(saved) ? saved : 0;
+  }
 };
 
 const handleMessageEvent = (messageData: MessageEventData) => {
@@ -647,15 +659,17 @@ const followupIcon = (suggestion: string) => {
 }
 
 .followup-row {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-radius: 14px;
+  border-radius: 9999px;
   border: 1px solid var(--border-main);
-  background: var(--background-gray-main);
-  padding: 10px 12px;
+  background: var(--background-white-main);
+  padding: 8px 14px;
+  min-height: 42px;
 }
 
 .overflow-action {

@@ -83,6 +83,7 @@ class AgentService:
         session = Session(
             agent_id=agent.id,
             user_id=user_id,
+            title="New task",
             memory_brief=memory_brief,
             goal=prepared_prompt.strip() or None,
             estimated_cost=estimated_cost,
@@ -265,13 +266,11 @@ class AgentService:
             return [
                 f"Summarize the strongest findings from {base}",
                 f"Turn {base} into a comparison spreadsheet",
-                f"Create slides from {base}",
                 f"Give me the next recommended actions based on {base}",
             ]
         return [
             f"Summarize {base} for me",
             f"Turn {base} into a spreadsheet",
-            f"Create slides from {base}",
             f"Help me improve the result for {base}",
         ]
 

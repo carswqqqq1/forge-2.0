@@ -108,9 +108,9 @@ const currentStep = computed(() => {
   height: 28px;
   padding: 0 10px;
   border-radius: 9999px;
-  border: 1px solid var(--border-main);
-  background: white;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #111827;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.92);
 }
 </style>

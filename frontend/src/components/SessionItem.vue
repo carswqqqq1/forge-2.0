@@ -19,8 +19,8 @@
     </div>
 
     <div class="flex-1 min-w-0 flex gap-[6px] items-center text-[14px] text-[var(--text-primary)]">
-      <span class="truncate" :title="session.title || t('New Chat')">
-        {{ session.title || t('New Chat') }}
+      <span class="truncate" :title="session.title || 'New task'">
+        {{ session.title || 'New task' }}
       </span>
     </div>
 

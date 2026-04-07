@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="isSearchModalOpen" class="fixed inset-0 z-[80] flex items-start justify-center bg-black/20 backdrop-blur-sm px-4 pt-20" @click.self="closeSearchModal">
+    <div v-if="isSearchModalOpen" class="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 backdrop-blur-md px-4 py-8" @click.self="closeSearchModal">
       <div class="w-full max-w-[620px] rounded-[28px] border border-black/5 bg-white shadow-[0px_30px_80px_0px_rgba(0,0,0,0.18)] overflow-hidden">
         <div class="px-5 pt-5 pb-3 border-b border-[var(--border-main)]">
           <div class="flex items-center gap-3 h-12 rounded-[16px] border border-[var(--border-main)] bg-[var(--background-gray-main)] px-4">

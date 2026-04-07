@@ -275,6 +275,21 @@ Operational notes:
 - the exact requested host `python -m uvicorn ...` restart command failed on this machine because there is no system `python` binary
 - the Docker backend was restarted instead so the patched backend is the one serving Forge
 
+### 22. Manus-Style UI Polish Pass
+
+- set new sessions to default to `New task`
+- updated chat header fallback title to `New task`
+- updated model dropdown naming to:
+  - Forge Max
+  - Forge Regular
+  - Forge Lite
+- darkened running-task step chips to better match Manus
+- centered the search modal and deepened the overlay background
+- changed post-task follow-ups to rounded chip-style buttons
+- reduced follow-up count to 3 suggestions
+- added persistent local star-rating saving per session
+- aligned the home quick-action `More` dropdown to the requested Forge options
+
 ## Runtime / Environment Notes
 
 ### Local Dev

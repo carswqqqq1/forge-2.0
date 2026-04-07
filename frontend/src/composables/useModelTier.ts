@@ -27,9 +27,9 @@ const tierMeta = {
   },
   regular: {
     key: 'regular' as const,
-    title: 'Forge',
+    title: 'Forge Regular',
     description: 'Versatile agent capable of most tasks.',
-    shortLabel: 'Forge',
+    shortLabel: 'Forge Regular',
   },
   lite: {
     key: 'lite' as const,

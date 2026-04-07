@@ -101,7 +101,7 @@ import { useRouter } from 'vue-router';
 import ChatBox from '../components/ChatBox.vue';
 import { createSession } from '../api/agent';
 import { showErrorToast, showInfoToast } from '../utils/toast';
-import { PanelLeft, Sparkles, Plus, Bell, BriefcaseBusiness, Monitor, Laptop, PenTool, AppWindow, CalendarClock, SearchCheck, Sheet, ChartColumn, Clapperboard, AudioWaveform, MessageCircle, ExternalLink, X } from 'lucide-vue-next';
+import { PanelLeft, Sparkles, Plus, Bell, BriefcaseBusiness, Monitor, Laptop, PenTool, CalendarClock, SearchCheck, Sheet, Clapperboard, AudioWaveform, MessageCircle, ExternalLink, X } from 'lucide-vue-next';
 import type { FileInfo } from '../api/file';
 import { useLeftPanel } from '../composables/useLeftPanel';
 import { useFilePanel } from '../composables/useFilePanel';
@@ -143,14 +143,12 @@ const primaryActions: QuickAction[] = [
 ];
 
 const moreActions: QuickAction[] = [
-  { label: 'Develop apps', icon: AppWindow, prompt: 'Develop an app that ' },
-  { label: 'Schedule task', icon: CalendarClock, prompt: 'Schedule a task that ' },
   { label: 'Wide Research', icon: SearchCheck, prompt: 'Conduct deep research on ', wideResearch: true },
   { label: 'Spreadsheet', icon: Sheet, prompt: 'Create a spreadsheet for ' },
-  { label: 'Visualization', icon: ChartColumn, prompt: 'Create a visualization for ' },
   { label: 'Video', icon: Clapperboard, prompt: 'Create a video plan for ' },
   { label: 'Audio', icon: AudioWaveform, prompt: 'Create an audio brief for ' },
   { label: 'Chat mode', icon: MessageCircle, prompt: 'Help me think through ' },
+  { label: 'Schedule task', icon: CalendarClock, prompt: 'Schedule a task that ' },
   { label: 'Playbook', icon: ExternalLink, prompt: 'Create a playbook for ', external: true },
 ];
 
