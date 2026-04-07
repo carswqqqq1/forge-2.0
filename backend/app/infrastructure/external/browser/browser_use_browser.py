@@ -77,6 +77,82 @@ class BrowserUseBrowser:
             finally:
                 self._session = None
 
+    async def _clear_page_storage(self, page) -> None:
+        """Best-effort cleanup of page storage before closing stale tabs."""
+        try:
+            page_url = await page.evaluate("() => window.location.href")
+            if not str(page_url).startswith(("http://", "https://")):
+                return
+            await page.evaluate(
+                """async () => {
+                    try { localStorage.clear(); } catch (e) {}
+                    try { sessionStorage.clear(); } catch (e) {}
+                    try {
+                        if (window.indexedDB && indexedDB.databases) {
+                            const databases = await indexedDB.databases();
+                            await Promise.all(
+                                databases
+                                    .map((db) => db && db.name)
+                                    .filter(Boolean)
+                                    .map((name) => new Promise((resolve) => {
+                                        const request = indexedDB.deleteDatabase(name);
+                                        request.onsuccess = request.onerror = request.onblocked = () => resolve(null);
+                                    }))
+                            );
+                        }
+                    } catch (e) {}
+                    try {
+                        if ('caches' in window) {
+                            const keys = await caches.keys();
+                            await Promise.all(keys.map((key) => caches.delete(key)));
+                        }
+                    } catch (e) {}
+                    try {
+                        if (navigator.serviceWorker?.getRegistrations) {
+                            const registrations = await navigator.serviceWorker.getRegistrations();
+                            await Promise.all(registrations.map((registration) => registration.unregister()));
+                        }
+                    } catch (e) {}
+                }"""
+            )
+        except Exception as exc:
+            logger.debug("Skipping page storage cleanup: %s", exc)
+
+    async def reset_state(self) -> None:
+        """Reset tabs and cookies so each new chat starts from a fresh browser."""
+        session = await self._ensure_session()
+        stale_pages = await session.get_pages()
+
+        fresh_page = await session.new_page("about:blank")
+        fresh_target_id = getattr(fresh_page, "_target_id", None)
+        if fresh_target_id:
+            await session.get_or_create_cdp_session(target_id=fresh_target_id, focus=True)
+
+        for stale_page in stale_pages:
+            try:
+                await self._clear_page_storage(stale_page)
+            except Exception:
+                pass
+            try:
+                await session.close_page(stale_page)
+            except Exception as exc:
+                logger.debug("Failed to close stale browser tab: %s", exc)
+
+        try:
+            await session.clear_cookies()
+        except Exception as exc:
+            logger.debug("Failed to clear browser cookies: %s", exc)
+
+        try:
+            await session.cdp_client.send.Network.clearBrowserCache()
+        except Exception as exc:
+            logger.debug("Failed to clear browser cache: %s", exc)
+
+        try:
+            await fresh_page.goto("about:blank")
+        except Exception:
+            pass
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

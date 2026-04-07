@@ -52,16 +52,33 @@ class AgentDomainService:
         """Create a new agent task"""
         sandbox = None
         sandbox_id = session.sandbox_id
+        fresh_sandbox = False
         if sandbox_id:
-            sandbox = await self._sandbox_cls.get(sandbox_id)
+            try:
+                sandbox = await self._sandbox_cls.get(sandbox_id)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to restore sandbox %s for session %s, creating a fresh one: %s",
+                    sandbox_id,
+                    session.id,
+                    exc,
+                )
+                sandbox = None
         if not sandbox:
             sandbox = await self._sandbox_cls.create()
             session.sandbox_id = sandbox.id
+            fresh_sandbox = True
             await self._session_repository.save(session)
         browser = await sandbox.get_browser()
         if not browser:
             logger.error(f"Failed to get browser for Sandbox {sandbox_id}")
             raise RuntimeError(f"Failed to get browser for Sandbox {sandbox_id}")
+
+        if fresh_sandbox:
+            try:
+                await browser.reset_state()
+            except Exception as exc:
+                logger.warning("Failed to reset fresh browser state for session %s: %s", session.id, exc)
         
         await self._session_repository.save(session)
 

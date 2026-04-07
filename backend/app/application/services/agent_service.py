@@ -219,9 +219,12 @@ class AgentService:
             logger.error(f"Session {session_id} not found for user {user_id}")
             raise RuntimeError("Session not found")
         if session.sandbox_id:
-            sandbox = await self._sandbox_cls.get(session.sandbox_id)
-            if sandbox:
-                await sandbox.destroy()
+            try:
+                sandbox = await self._sandbox_cls.get(session.sandbox_id)
+                if sandbox:
+                    await sandbox.destroy()
+            except Exception as exc:
+                logger.warning("Failed to destroy sandbox %s while deleting session %s: %s", session.sandbox_id, session_id, exc)
         
         await self._session_repository.delete(session_id)
         logger.info(f"Session {session_id} deleted successfully")
@@ -236,9 +239,15 @@ class AgentService:
             raise RuntimeError("Session not found")
         await self._agent_domain_service.stop_session(session_id)
         if session.sandbox_id:
-            sandbox = await self._sandbox_cls.get(session.sandbox_id)
-            if sandbox:
-                await sandbox.destroy()
+            try:
+                sandbox = await self._sandbox_cls.get(session.sandbox_id)
+                if sandbox:
+                    await sandbox.destroy()
+            except Exception as exc:
+                logger.warning("Failed to destroy sandbox %s while stopping session %s: %s", session.sandbox_id, session_id, exc)
+            session.sandbox_id = None
+            session.task_id = None
+            await self._session_repository.save(session)
         logger.info(f"Session {session_id} stopped successfully")
 
     async def clear_unread_message_count(self, session_id: str, user_id: str) -> None:

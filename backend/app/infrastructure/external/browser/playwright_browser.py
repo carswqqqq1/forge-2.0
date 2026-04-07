@@ -30,6 +30,87 @@ class PlaywrightBrowser:
             kwargs["default_headers"] = self.settings.extra_headers
         self._model = init_chat_model(**kwargs)
         self.cdp_url = cdp_url
+
+    async def _clear_page_storage(self, page: Page) -> None:
+        """Best-effort cleanup of per-origin browser data before closing a page."""
+        try:
+            page_url = page.url or ""
+            if not page_url.startswith(("http://", "https://")):
+                return
+            await page.evaluate(
+                """async () => {
+                    try { localStorage.clear(); } catch (e) {}
+                    try { sessionStorage.clear(); } catch (e) {}
+                    try {
+                        if (window.indexedDB && indexedDB.databases) {
+                            const databases = await indexedDB.databases();
+                            await Promise.all(
+                                databases
+                                    .map((db) => db && db.name)
+                                    .filter(Boolean)
+                                    .map((name) => new Promise((resolve) => {
+                                        const request = indexedDB.deleteDatabase(name);
+                                        request.onsuccess = request.onerror = request.onblocked = () => resolve(null);
+                                    }))
+                            );
+                        }
+                    } catch (e) {}
+                    try {
+                        if ('caches' in window) {
+                            const keys = await caches.keys();
+                            await Promise.all(keys.map((key) => caches.delete(key)));
+                        }
+                    } catch (e) {}
+                    try {
+                        if (navigator.serviceWorker?.getRegistrations) {
+                            const registrations = await navigator.serviceWorker.getRegistrations();
+                            await Promise.all(registrations.map((registration) => registration.unregister()));
+                        }
+                    } catch (e) {}
+                }"""
+            )
+        except Exception as exc:
+            logger.debug("Skipping page storage cleanup for %s: %s", getattr(page, "url", "unknown"), exc)
+
+    async def reset_state(self) -> None:
+        """Reset tabs and storage so a brand-new chat gets a brand-new browser."""
+        await self._ensure_browser()
+
+        contexts = list(self.browser.contexts) if self.browser else []
+        if not contexts:
+            contexts = [await self.browser.new_context()]
+
+        primary_context = contexts[0]
+
+        for extra_context in contexts[1:]:
+            try:
+                for extra_page in list(extra_context.pages):
+                    await self._clear_page_storage(extra_page)
+                await extra_context.clear_cookies()
+                await extra_context.close()
+            except Exception as exc:
+                logger.debug("Failed to close extra browser context: %s", exc)
+
+        for existing_page in list(primary_context.pages):
+            await self._clear_page_storage(existing_page)
+
+        try:
+            await primary_context.clear_cookies()
+        except Exception as exc:
+            logger.debug("Failed to clear browser cookies: %s", exc)
+
+        for existing_page in list(primary_context.pages):
+            try:
+                if not existing_page.is_closed():
+                    await existing_page.close()
+            except Exception as exc:
+                logger.debug("Failed to close stale page: %s", exc)
+
+        self.page = await primary_context.new_page()
+        try:
+            await self.page.goto("about:blank", wait_until="load")
+        except Exception:
+            pass
         
     async def initialize(self):
         """Initialize and ensure resources are available"""

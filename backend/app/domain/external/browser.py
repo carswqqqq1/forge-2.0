@@ -3,6 +3,10 @@ from app.domain.models.tool_result import ToolResult
 
 class Browser(Protocol):
     """Browser service gateway interface"""
+
+    async def reset_state(self) -> None:
+        """Reset tabs, cookies, and browser state for a fresh chat session."""
+        ...
     
     async def view_page(self) -> ToolResult:
         """View current page content"""
